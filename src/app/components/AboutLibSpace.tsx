@@ -3,12 +3,20 @@ import { ArrowLeft, BookOpen, Users, Zap, Shield, Calendar, BarChart3 } from "lu
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import BusinessRulesInfo from "./BusinessRulesInfo";
+import { ThemeToggle } from "./ui/ThemeToggle";
 
 export default function AboutLibSpace() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background paper-texture relative overflow-hidden">
+      {/* Global Grain Overlay */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.015] z-[100] bg-[url('https://www.transparenttextures.com/patterns/asfalt-dark.png')]" />
+
+      {/* Floating atmospheric gradients */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute bottom-[10%] right-[-10%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[140px] pointer-events-none" />
+
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-card/80 backdrop-blur-md border-b border-border shadow-md sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Link to="/">
@@ -18,24 +26,28 @@ export default function AboutLibSpace() {
               </Button>
             </Link>
             <div className="flex items-center gap-3">
-              <BookOpen className="w-8 h-8 text-blue-600" />
-              <h1 className="text-2xl">About &lt;Space.h&gt;</h1>
+              <BookOpen className="w-8 h-8 text-primary shadow-sm" />
+              <h1 className="text-2xl" style={{ fontFamily: 'var(--font-heading)' }}>About &lt;Space.h&gt;</h1>
+            </div>
+            <div className="flex-1 flex justify-end">
+              <ThemeToggle />
             </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="container mx-auto px-6 py-12 max-w-5xl relative z-10">
         {/* Introduction */}
         <section className="mb-12">
-          <h2 className="text-3xl mb-4">The Pain Point</h2>
-          <Card>
-            <CardContent className="pt-6">
-              <h3 className="text-xl font-medium mb-3">Inefficient Library Space Utilization</h3>
-              <p className="text-gray-700 leading-relaxed">
-                During peak periods (midterms and finals), students spend significant time wandering through different 
-                floors of the library to find an available seat or a vacant group study room. This results in wasted 
-                study time, overcrowding in certain zones while others remain underutilized, and frequent conflicts over 
+          <h2 className="text-4xl mb-6 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>The Pain Point</h2>
+          <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+            <CardContent className="pt-8 relative z-10">
+              <h3 className="text-2xl font-medium mb-4" style={{ fontFamily: 'var(--font-heading)' }}>Inefficient Library Space Utilization</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                During peak periods (midterms and finals), students spend significant time wandering through different
+                floors of the library to find an available seat or a vacant group study room. This results in wasted
+                study time, overcrowding in certain zones while others remain underutilized, and frequent conflicts over
                 "saved" seats (leaving a bag to claim a desk for hours).
               </p>
             </CardContent>
@@ -43,21 +55,22 @@ export default function AboutLibSpace() {
         </section>
 
         {/* Solution */}
-        <section className="mb-12">
-          <h2 className="text-3xl mb-4">The Solution</h2>
-          <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-200">
-            <CardContent className="pt-6">
-              <h3 className="text-2xl font-medium mb-3 text-blue-900">
+        <section className="mb-16">
+          <h2 className="text-4xl mb-6 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>The Solution</h2>
+          <Card className="bg-card/40 backdrop-blur-md border border-primary/20 shadow-xl overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
+            <CardContent className="pt-8 relative z-10">
+              <h3 className="text-3xl font-medium mb-4 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>
                 &lt;Space.h&gt; – A Real-Time Seat & Room Reservation App
               </h3>
-              <p className="text-gray-700 leading-relaxed">
-                A web-based platform that allows students to view a live map of the library, check real-time availability 
-                of individual desks and group study rooms, and reserve them in advance. The system uses a Check-in/Check-out 
+              <p className="text-muted-foreground leading-relaxed">
+                A web-based platform that allows students to view a live map of the library, check real-time availability
+                of individual desks and group study rooms, and reserve them in advance. The system uses a Check-in/Check-out
                 mechanism to ensure that "ghost bookings" (reserved but empty seats) are automatically released for others to use.
               </p>
-              <div className="mt-4 p-4 bg-walnut/5 rounded border border-walnut/20">
-                <p className="text-sm text-walnut/80 italic">
-                  <strong>💡 The Name:</strong> In C programming, header files (libraries) end with ".h" — 
+              <div className="mt-6 p-6 bg-primary/5 rounded-2xl border border-primary/20 backdrop-blur-sm">
+                <p className="text-sm leading-relaxed italic">
+                  <span className="font-bold text-primary mr-1">💡 The Name:</span> In C programming, header files (libraries) end with ".h" —
                   so &lt;Space.h&gt; is both a library space and a programming library. A clever nod to the fusion of code and knowledge.
                 </p>
               </div>
@@ -66,60 +79,60 @@ export default function AboutLibSpace() {
         </section>
 
         {/* Target Users */}
-        <section className="mb-12">
-          <h2 className="text-3xl mb-4">Target Users</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
+        <section className="mb-16">
+          <h2 className="text-4xl mb-6 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>Target Users</h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-md hover:bg-primary/5 transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-gray-600" />
+                <CardTitle className="flex items-center gap-3" style={{ fontFamily: 'var(--font-heading)' }}>
+                  <Users className="h-6 w-6 text-muted-foreground" />
                   Guest User
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground leading-relaxed">
                   Can view the real-time occupancy "Heatmap" of the library but cannot make reservations.
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-md hover:bg-primary/5 transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-blue-600" />
+                <CardTitle className="flex items-center gap-3" style={{ fontFamily: 'var(--font-heading)' }}>
+                  <BookOpen className="h-6 w-6 text-primary" />
                   Student User
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground leading-relaxed">
                   Can search for available seats, book a slot, and check in/out to track their usage.
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-md hover:bg-primary/5 transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-purple-600" />
+                <CardTitle className="flex items-center gap-3" style={{ fontFamily: 'var(--font-heading)' }}>
+                  <Shield className="h-6 w-6 text-accent" />
                   Faculty User
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground leading-relaxed">
                   Has priority access to reserve large Group Study Rooms for department meetings or consultations.
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-md hover:bg-primary/5 transition-colors">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-green-600" />
+                <CardTitle className="flex items-center gap-3" style={{ fontFamily: 'var(--font-heading)' }}>
+                  <BarChart3 className="h-6 w-6 text-primary" />
                   Admin (Library Staff)
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground leading-relaxed">
                   Manages the physical layout (CRUD resources), monitors usage, and handles reports of "occupied but empty" seats.
                 </p>
               </CardContent>
@@ -139,8 +152,8 @@ export default function AboutLibSpace() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">
-                  A Student creates a RESERVATION_TRANSACTION record, which updates the STUDY_RESOURCE status to "Reserved." 
+                <p className="text-muted-foreground">
+                  A Student creates a RESERVATION_TRANSACTION record, which updates the STUDY_RESOURCE status to "Reserved."
                   The system validates availability, prevents overlaps, enforces time limits, and manages group bookings.
                 </p>
               </CardContent>
@@ -154,8 +167,8 @@ export default function AboutLibSpace() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">
-                  The system updates the RESERVATION_TRANSACTION to "Active" and creates an ATTENDANCE_LOG_TRANSACTION entry 
+                <p className="text-muted-foreground">
+                  The system updates the RESERVATION_TRANSACTION to "Active" and creates an ATTENDANCE_LOG_TRANSACTION entry
                   to record the exact usage time. Check-out releases the resource and prevents penalties.
                 </p>
               </CardContent>
@@ -169,8 +182,8 @@ export default function AboutLibSpace() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">
-                  The Admin landing page pulls data from all entities to calculate the occupancy rate, peak hours, 
+                <p className="text-muted-foreground">
+                  The Admin landing page pulls data from all entities to calculate the occupancy rate, peak hours,
                   zone performance, and system health. Includes CRUD operations for managing library resources.
                 </p>
               </CardContent>
@@ -191,7 +204,7 @@ export default function AboutLibSpace() {
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <h3 className="font-medium mb-2">Frontend</h3>
-                  <ul className="space-y-1 text-gray-600">
+                  <ul className="space-y-1 text-muted-foreground">
                     <li>• React 18 with TypeScript</li>
                     <li>• React Router for navigation</li>
                     <li>• Tailwind CSS v4 for styling</li>
@@ -201,7 +214,7 @@ export default function AboutLibSpace() {
                 </div>
                 <div>
                   <h3 className="font-medium mb-2">Features</h3>
-                  <ul className="space-y-1 text-gray-600">
+                  <ul className="space-y-1 text-muted-foreground">
                     <li>• Real-time heatmap visualization</li>
                     <li>• Complete CRUD operations</li>
                     <li>• Business rule validation</li>
@@ -215,47 +228,50 @@ export default function AboutLibSpace() {
         </section>
 
         {/* Portal Links */}
-        <section className="mb-12">
-          <h2 className="text-3xl mb-4">Explore the Portals</h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            <Link to="/student">
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+        <section className="mb-24">
+          <h2 className="text-4xl mb-8 text-center text-primary" style={{ fontFamily: 'var(--font-heading)' }}>Explore the Portals</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Link to="/student" className="group">
+              <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg hover:shadow-2xl hover:border-primary/50 transition-all duration-300 h-full relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-blue-600">
-                    <BookOpen className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-3 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>
+                    <BookOpen className="h-6 w-6 group-hover:scale-110 transition-transform" />
                     Student Portal
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-600">Browse resources, make bookings, and manage your reservations</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">Browse resources, make bookings, and manage your private study sessions</p>
                 </CardContent>
               </Card>
             </Link>
 
-            <Link to="/faculty">
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Link to="/faculty" className="group">
+              <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg hover:shadow-2xl hover:border-accent/50 transition-all duration-300 h-full relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent pointer-events-none" />
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-purple-600">
-                    <Shield className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-3 text-accent" style={{ fontFamily: 'var(--font-heading)' }}>
+                    <Shield className="h-6 w-6 group-hover:scale-110 transition-transform" />
                     Faculty Portal
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-600">Priority access to meeting rooms and consultation spaces</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">Priority access to meeting rooms and exclusive academic chambers</p>
                 </CardContent>
               </Card>
             </Link>
 
-            <Link to="/admin">
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Link to="/admin" className="group">
+              <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg hover:shadow-2xl hover:border-primary/50 transition-all duration-300 h-full relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-green-600">
-                    <BarChart3 className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-3 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>
+                    <BarChart3 className="h-6 w-6 group-hover:scale-110 transition-transform" />
                     Admin Dashboard
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-600">Manage resources, view analytics, and monitor system health</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">Total oversight: manage resources, view analytics, and curator controls</p>
                 </CardContent>
               </Card>
             </Link>
