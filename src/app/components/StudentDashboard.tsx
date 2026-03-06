@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Alert, AlertDescription } from "./ui/alert";
 import { toast } from "sonner";
+import { ThemeToggle } from "./ui/ThemeToggle";
 import {
   enhancedUsers,
   enhancedResources,
@@ -297,29 +298,39 @@ export default function StudentDashboard() {
     : null;
 
   return (
-    <div className="min-h-screen bg-background paper-texture">
+    <div className="min-h-screen bg-background paper-texture relative overflow-hidden">
+      {/* Global Grain/Noise Overlay */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.015] z-[100] bg-[url('https://www.transparenttextures.com/patterns/asfalt-dark.png')]" />
+
+      {/* Floating atmospheric gradients */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[20%] right-[-5%] w-[30%] h-[30%] bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
+
       {/* Header */}
-      <header className="bg-card border-b border-border shadow-md">
-        <div className="container mx-auto px-4 py-4">
+      <header className="bg-card/80 backdrop-blur-md border-b border-border shadow-md sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link to="/">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="hover:bg-primary/10">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back
                 </Button>
               </Link>
-              <h1 className="text-2xl">Student Portal</h1>
+              <h1 className="text-2xl" style={{ fontFamily: 'var(--font-heading)' }}>Student Portal</h1>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Welcome back,</p>
-              <p className="font-medium">{currentUser.full_name}</p>
+            <div className="flex items-center gap-4">
+              <ThemeToggle />
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest">Chronicle of</p>
+                <p className="font-medium text-primary">{currentUser.full_name}</p>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-6 py-12 relative z-10">
         {/* Penalty Alert */}
         {isBanned && (
           <Alert className="mb-6 border-destructive bg-destructive/10">
@@ -333,16 +344,17 @@ export default function StudentDashboard() {
 
         {/* Active Booking Card */}
         {activeReservation && (
-          <Card className="mb-8 border-moss bg-moss/5">
-            <CardHeader>
+          <Card className="mb-10 border-moss/30 bg-card/40 backdrop-blur-md shadow-xl relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-tr from-moss/5 to-transparent pointer-events-none" />
+            <CardHeader className="relative z-10">
               <CardTitle className="flex items-center justify-between">
-                <span>Your Active Booking</span>
-                <Badge variant="default">
+                <span style={{ fontFamily: 'var(--font-heading)' }}>Your Active Booking</span>
+                <Badge className="bg-moss/20 text-moss border-moss/30">
                   {activeReservation.booking_status}
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative z-10">
               <div className="space-y-4">
                 <div>
                   <p className="text-2xl font-medium mb-2" style={{ fontFamily: 'var(--font-heading)' }}>{activeResource?.resource_name}</p>
@@ -410,8 +422,9 @@ export default function StudentDashboard() {
 
           {/* Find a Seat Tab */}
           <TabsContent value="find-seat" className="space-y-6">
-            <Card>
-              <CardHeader>
+            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+              <CardHeader className="relative z-10">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Find a Seat</CardTitle>
@@ -539,28 +552,31 @@ export default function StudentDashboard() {
                 </div>
 
                 {/* Available Resources */}
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar relative z-10">
                   {availableResources.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No resources match your filters</p>
+                    <div className="text-center py-12 border-2 border-dashed border-border/30 rounded-xl bg-muted/5">
+                      <Search className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                      <p className="text-muted-foreground italic">No resources match your filters</p>
+                    </div>
                   ) : (
                     availableResources.map(resource => (
                       <div
                         key={resource.resource_id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                        className="flex items-center justify-between p-5 border border-border/50 rounded-xl bg-card/30 hover:bg-primary/5 transition-all duration-300 group/item hover:border-primary/30"
                       >
                         <div className="flex-1">
-                          <p className="font-medium" style={{ fontFamily: 'var(--font-heading)' }}>{resource.resource_name}</p>
+                          <p className="font-medium text-lg text-foreground group-hover/item:text-primary transition-colors" style={{ fontFamily: 'var(--font-heading)' }}>{resource.resource_name}</p>
                           <div className="flex flex-wrap gap-2 mt-2">
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-background/50">
                               {resource.resource_type}
                             </Badge>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
-                              Floor {resource.floor} - {resource.zone_location}
+                              Floor {resource.floor} • {resource.zone_location}
                             </span>
                             {resource.has_power_outlet && (
                               <span className="text-xs text-candlelight flex items-center gap-1">
-                                <Zap className="h-3 w-3" />
+                                <Zap className="h-3 w-3 fill-candlelight" />
                                 Power
                               </span>
                             )}
@@ -571,7 +587,7 @@ export default function StudentDashboard() {
                             )}
                           </div>
                         </div>
-                        <Badge className="bg-moss text-primary-foreground border-none">Available</Badge>
+                        <Badge className="bg-moss/20 text-moss border-moss/30 px-3 py-1 font-medium">Available</Badge>
                       </div>
                     ))
                   )}
@@ -582,28 +598,30 @@ export default function StudentDashboard() {
 
           {/* History Tab */}
           <TabsContent value="history">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-bl from-accent/5 via-transparent to-transparent pointer-events-none" />
+              <CardHeader className="relative z-10">
+                <CardTitle className="flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
                   <History className="h-5 w-5" />
                   My Booking History
                 </CardTitle>
                 <CardDescription>View all your past and current reservations</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
+              <CardContent className="relative z-10">
+                <div className="space-y-3">
                   {reservations
                     .filter(r => r.user_id === currentUser.user_id)
                     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                     .map(reservation => {
                       const resource = resources.find(r => r.resource_id === reservation.resource_id);
                       return (
-                        <div key={reservation.reservation_id} className="p-4 border rounded-lg bg-card">
+                        <div key={reservation.reservation_id} className="p-5 border border-border/50 rounded-xl bg-card/30 hover:bg-muted/30 transition-all">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <p className="font-medium" style={{ fontFamily: 'var(--font-heading)' }}>{resource?.resource_name}</p>
-                              <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
-                                <span>
+                              <p className="font-medium text-lg" style={{ fontFamily: 'var(--font-heading)' }}>{resource?.resource_name}</p>
+                              <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3.5 w-3.5" />
                                   {new Date(reservation.start_time).toLocaleDateString()} |{" "}
                                   {new Date(reservation.start_time).toLocaleTimeString([], {
                                     hour: "2-digit",
@@ -618,12 +636,12 @@ export default function StudentDashboard() {
                               </div>
                             </div>
                             <Badge
-                              variant={
+                              className={
                                 reservation.booking_status === 'Completed'
-                                  ? 'default'
+                                  ? 'bg-primary/20 text-primary border-primary/30'
                                   : reservation.booking_status === 'Cancelled'
-                                    ? 'destructive'
-                                    : 'secondary'
+                                    ? 'bg-destructive/20 text-destructive border-destructive/30'
+                                    : 'bg-accent/20 text-accent border-accent/30'
                               }
                             >
                               {reservation.booking_status}

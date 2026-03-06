@@ -17,6 +17,7 @@ import {
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { toast } from "sonner";
+import { ThemeToggle } from "./ui/ThemeToggle";
 import {
   enhancedUsers,
   enhancedResources,
@@ -85,135 +86,193 @@ export default function EnhancedAdminDashboard() {
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background paper-texture relative overflow-hidden">
+      {/* Global Grain/Noise Overlay */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.015] z-[100] bg-[url('https://www.transparenttextures.com/patterns/asfalt-dark.png')]" />
+
+      {/* Floating atmospheric gradients */}
+      <div className="absolute top-[-15%] left-[10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[150px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[10%] w-[40%] h-[40%] bg-accent/5 rounded-full blur-[130px] pointer-events-none" />
+
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
+      <header className="bg-card/80 backdrop-blur-md border-b border-border shadow-md sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link to="/">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="hover:bg-primary/10">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back
                 </Button>
               </Link>
               <div>
-                <h1 className="text-2xl">Admin Dashboard</h1>
-                <p className="text-sm text-gray-600">LibSpace Management Console</p>
+                <h1 className="text-2xl" style={{ fontFamily: 'var(--font-heading)' }}>Admin Dashboard</h1>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">LibSpace Management Console</p>
               </div>
             </div>
-            <Badge variant="outline" className="text-sm">
-              <Settings className="mr-1 h-3 w-3" />
-              Admin Access
-            </Badge>
+            <div className="flex items-center gap-4">
+              <ThemeToggle />
+              <Badge variant="outline" className="text-[10px] uppercase tracking-wider py-1 border-primary/30 text-primary bg-primary/5">
+                <Settings className="mr-1 h-3 w-3" />
+                Admin Access
+              </Badge>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-6 py-12 relative z-10">
         {/* Top Row - Key Metrics Cards */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Total Seats</CardDescription>
-              <CardTitle className="text-3xl">{metrics.totalSeats}</CardTitle>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg group hover:border-primary/30 transition-all duration-300">
+            <CardHeader className="pb-3 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardDescription className="uppercase tracking-widest text-[10px] font-bold">Total Seats</CardDescription>
+              <CardTitle className="text-4xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{metrics.totalSeats}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-sm text-gray-600">
-                Currently Occupied: <span className="font-medium">{metrics.occupiedSeats}</span>
+              <div className="text-sm text-muted-foreground mb-4">
+                Currently Occupied: <span className="font-semibold text-primary">{metrics.occupiedSeats}</span>
               </div>
-              <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="h-3 bg-muted/50 rounded-full overflow-hidden border border-border/30 p-[2px]">
                 <div
-                  className="h-full bg-blue-600 transition-all"
+                  className="h-full bg-primary rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]"
                   style={{ width: `${metrics.occupancyRate}%` }}
                 />
               </div>
-              <div className="mt-1 text-xs text-gray-500">
+              <div className="mt-2 text-[10px] text-right font-medium uppercase tracking-tighter text-muted-foreground">
                 {metrics.occupancyRate}% Occupancy
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Pending Reservations</CardDescription>
-              <CardTitle className="text-3xl">{metrics.pendingReservations}</CardTitle>
+          <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg group hover:border-primary/30 transition-all duration-300">
+            <CardHeader className="pb-3 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardDescription className="uppercase tracking-widest text-[10px] font-bold">Pending Reservations</CardDescription>
+              <CardTitle className="text-4xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{metrics.pendingReservations}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-600">Awaiting check-in</p>
-              <TrendingUp className="h-4 w-4 text-blue-600 mt-2" />
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground italic">Awaiting check-in</p>
+                <TrendingUp className="h-5 w-5 text-primary animate-pulse" />
+              </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>Maintenance Alerts</CardDescription>
-              <CardTitle className="text-3xl text-orange-600">{metrics.maintenanceAlerts}</CardTitle>
+          <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg group hover:border-primary/30 transition-all duration-300">
+            <CardHeader className="pb-3 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardDescription className="uppercase tracking-widest text-[10px] font-bold">Maintenance Alerts</CardDescription>
+              <CardTitle className="text-4xl font-bold text-primary" style={{ fontFamily: 'var(--font-heading)' }}>{metrics.maintenanceAlerts}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-600">Resources under maintenance</p>
-              <Wrench className="h-4 w-4 text-orange-600 mt-2" />
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground italic">Resources under maintenance</p>
+                <Wrench className="h-5 w-5 text-primary" />
+              </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardDescription>No-Shows</CardDescription>
-              <CardTitle className="text-3xl text-red-600">{metrics.noShows}</CardTitle>
+          <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg group hover:border-destructive/30 transition-all duration-300">
+            <CardHeader className="pb-3 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-destructive/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardDescription className="uppercase tracking-widest text-[10px] font-bold text-destructive/70">No-Shows</CardDescription>
+              <CardTitle className="text-4xl font-bold text-destructive" style={{ fontFamily: 'var(--font-heading)' }}>{metrics.noShows}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-600">Missed reservations</p>
-              <AlertCircle className="h-4 w-4 text-red-600 mt-2" />
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground italic">Missed reservations</p>
+                <AlertCircle className="h-5 w-5 text-destructive" />
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Middle Row - Charts */}
-        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid lg:grid-cols-2 gap-8 mb-10">
           {/* Traffic Flow Line Graph */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Traffic Flow Throughout the Day</CardTitle>
-              <CardDescription>Peak hours analysis</CardDescription>
+          <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-xl overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+            <CardHeader className="relative z-10">
+              <CardTitle style={{ fontFamily: 'var(--font-heading)' }}>Traffic Flow Throughout the Day</CardTitle>
+              <CardDescription>Peak hours analysis from recent logs</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+            <CardContent className="relative z-10 pt-4">
+              <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={dashboardData.peak_time_data}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="hour" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} name="Students" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} vertical={false} />
+                  <XAxis
+                    dataKey="hour"
+                    stroke="var(--muted-foreground)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--muted-foreground)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(var(--card-rgb), 0.9)',
+                      borderColor: 'var(--border)',
+                      borderRadius: '12px',
+                      backdropFilter: 'blur(8px)',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+                    }}
+                  />
+                  <Legend verticalAlign="top" height={36} />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="var(--primary)"
+                    strokeWidth={4}
+                    dot={{ r: 4, fill: 'var(--primary)', strokeWidth: 2, stroke: 'var(--background)' }}
+                    activeDot={{ r: 8, strokeWidth: 0 }}
+                    name="Student Entrance Count"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
           {/* Occupancy by Zone Pie Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Occupancy by Zone</CardTitle>
-              <CardDescription>Current distribution across library zones</CardDescription>
+          <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-xl overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-bl from-accent/5 to-transparent pointer-events-none" />
+            <CardHeader className="relative z-10">
+              <CardTitle style={{ fontFamily: 'var(--font-heading)' }}>Occupancy by Zone</CardTitle>
+              <CardDescription>Spatial distribution across active chambers</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+            <CardContent className="relative z-10 mt-2">
+              <ResponsiveContainer width="100%" height={320}>
                 <PieChart>
                   <Pie
                     data={metrics.zoneData}
                     cx="50%"
-                    cy="50%"
+                    cy="45%"
+                    innerRadius={70}
+                    outerRadius={100}
+                    paddingAngle={8}
                     labelLine={false}
                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
                     dataKey="value"
                   >
-                    {metrics.zoneData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {metrics.zoneData.map((_entry, index) => (
+                      <Cell key={`cell-${index}`} fill={`var(--chart-${(index % 5) + 1})`} stroke="none" />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(var(--card-rgb), 0.9)',
+                      borderColor: 'var(--border)',
+                      borderRadius: '12px',
+                      backdropFilter: 'blur(8px)'
+                    }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -221,14 +280,15 @@ export default function EnhancedAdminDashboard() {
         </div>
 
         {/* Bottom Row - Resource Management */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Library Resources Management (CRUD)</CardTitle>
-            <CardDescription>
-              Edit seat numbers, change room status, and manage library equipment
+        <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-2xl overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+          <CardHeader className="relative z-10 border-b border-border/30">
+            <CardTitle style={{ fontFamily: 'var(--font-heading)' }}>Library Resources Management (CRUD)</CardTitle>
+            <CardDescription className="italic">
+              Administrative control over study chambers, equipment, and maintenance cycles
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative z-10 pt-6">
             <Tabs defaultValue="all">
               <TabsList className="mb-4">
                 <TabsTrigger value="all">All Resources</TabsTrigger>
@@ -242,7 +302,7 @@ export default function EnhancedAdminDashboard() {
                   {resources.map(resource => (
                     <div
                       key={resource.resource_id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50"
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
@@ -251,7 +311,7 @@ export default function EnhancedAdminDashboard() {
                             <Badge variant="secondary" className="text-xs">Faculty Only</Badge>
                           )}
                         </div>
-                        <div className="flex gap-3 mt-2 text-sm text-gray-600">
+                        <div className="flex gap-3 mt-2 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
                             Floor {resource.floor} - {resource.zone_location}
@@ -270,10 +330,10 @@ export default function EnhancedAdminDashboard() {
                             resource.current_status === 'Available'
                               ? 'bg-green-500'
                               : resource.current_status === 'Occupied'
-                              ? 'bg-red-500'
-                              : resource.current_status === 'Reserved'
-                              ? 'bg-yellow-500'
-                              : 'bg-gray-500'
+                                ? 'bg-red-500'
+                                : resource.current_status === 'Reserved'
+                                  ? 'bg-yellow-500'
+                                  : 'bg-gray-500'
                           }
                         >
                           {resource.current_status}
@@ -304,7 +364,7 @@ export default function EnhancedAdminDashboard() {
                             <div className="space-y-4">
                               <div>
                                 <Label>Current Status</Label>
-                                <p className="text-sm text-gray-600 mt-1">{resource.current_status}</p>
+                                <p className="text-sm text-muted-foreground mt-1">{resource.current_status}</p>
                               </div>
                               <div>
                                 <Label htmlFor="new-status">New Status</Label>
@@ -345,7 +405,7 @@ export default function EnhancedAdminDashboard() {
                       >
                         <div>
                           <p className="font-medium">{resource.resource_name}</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             Floor {resource.floor} - {resource.zone_location}
                           </p>
                         </div>
@@ -366,7 +426,7 @@ export default function EnhancedAdminDashboard() {
                       >
                         <div>
                           <p className="font-medium">{resource.resource_name}</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             Floor {resource.floor} - {resource.zone_location}
                           </p>
                         </div>
@@ -389,11 +449,11 @@ export default function EnhancedAdminDashboard() {
                     .map(resource => (
                       <div
                         key={resource.resource_id}
-                        className="flex items-center justify-between p-4 border rounded-lg bg-orange-50"
+                        className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/50"
                       >
                         <div>
                           <p className="font-medium">{resource.resource_name}</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             Floor {resource.floor} - {resource.zone_location}
                           </p>
                         </div>
@@ -411,7 +471,7 @@ export default function EnhancedAdminDashboard() {
                       </div>
                     ))}
                   {resources.filter(r => r.current_status === 'Under Maintenance').length === 0 && (
-                    <p className="text-center text-gray-500 py-8">
+                    <p className="text-center text-muted-foreground py-8">
                       No resources under maintenance
                     </p>
                   )}
@@ -422,34 +482,46 @@ export default function EnhancedAdminDashboard() {
         </Card>
 
         {/* Active Users Statistics */}
-        <div className="grid md:grid-cols-3 gap-6 mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Active Users</CardTitle>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-10 mb-12">
+          <Card className="border-border/50 bg-card/30 backdrop-blur-sm group hover:bg-primary/5 hover:border-primary/30 transition-all shadow-md overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="pb-2 relative z-10">
+              <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground flex items-center justify-between">
+                Active Users
+                <Users className="h-4 w-4 text-primary/50 group-hover:text-primary transition-colors" />
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-medium">{dashboardData.total_active_users}</div>
-              <p className="text-sm text-gray-600 mt-1">Currently in library</p>
+            <CardContent className="relative z-10">
+              <div className="text-4xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{dashboardData.total_active_users}</div>
+              <p className="text-[10px] text-primary/70 mt-1 uppercase font-semibold">Currently in library</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Top Performing Zone</CardTitle>
+          <Card className="border-border/50 bg-card/30 backdrop-blur-sm group hover:bg-primary/5 hover:border-primary/30 transition-all shadow-md overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="pb-2 relative z-10">
+              <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground flex items-center justify-between">
+                Top Performing Zone
+                <MapPin className="h-4 w-4 text-primary/50 group-hover:text-primary transition-colors" />
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-medium">{dashboardData.top_performing_zone}</div>
-              <p className="text-sm text-gray-600 mt-1">Most utilized area</p>
+            <CardContent className="relative z-10">
+              <div className="text-2xl font-bold text-primary" style={{ fontFamily: 'var(--font-heading)' }}>{dashboardData.top_performing_zone}</div>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase font-semibold">Most utilized area</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Overall Occupancy</CardTitle>
+          <Card className="border-border/50 bg-card/30 backdrop-blur-sm group hover:bg-primary/5 hover:border-primary/30 transition-all shadow-md overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <CardHeader className="pb-2 relative z-10">
+              <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground flex items-center justify-between">
+                Overall Occupancy
+                <TrendingUp className="h-4 w-4 text-primary/50 group-hover:text-primary transition-colors" />
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-medium">{dashboardData.occupancy_rate}%</div>
-              <p className="text-sm text-gray-600 mt-1">Library-wide rate</p>
+            <CardContent className="relative z-10">
+              <div className="text-4xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{dashboardData.occupancy_rate}%</div>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase font-semibold">Library-wide rate</p>
             </CardContent>
           </Card>
         </div>
