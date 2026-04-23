@@ -1,11 +1,24 @@
+# Space.h
 
-  # Landing page with CRUD
+Space.h is a full-stack library seat and room reservation system for university students, faculty, guests, and library staff.
 
-  This is a code bundle for Landing page with CRUD. The original project is available at https://www.figma.com/design/TFV47TWosH1RxsOIXbe5cM/Landing-page-with-CRUD.
+## Repository Layout
 
-  ## Running the code
+- `frontend/` React + Vite client
+- `backend/` Spring Boot API
+- `docs/` living project documentation, architecture notes, and development workflow
+- `.agent/` agent operating rules for CI, security, and commit discipline
 
-  Run `npm i` to install the dependencies.
+## Product Overview
 
-  Run `npm run dev` to start the development server.
+The platform is designed around four roles:
+
+- `Guest` can view public occupancy and availability information
+- `Student` can reserve seats, check in, check out, and manage bookings
+- `Faculty` can reserve priority rooms for consultations and meetings
+- `Admin` can manage resources, monitor activity, and review reports
+
+## Development
+
+Project setup, workflows, architecture notes, and implementation decisions live under `docs/`.
   

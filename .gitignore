@@ -9,14 +9,17 @@ lerna-debug.log*
 
 # Dependencies
 node_modules
+.m2
 dist
 dist-ssr
 *.local
+target
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
+**/.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -30,3 +33,6 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Java
+.gradle
