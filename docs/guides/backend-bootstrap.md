@@ -83,6 +83,31 @@ Starts the real Spring application context during tests.
 
 This is heavier than a small unit test, but it is the right first test because it proves the backend actually boots.
 
+### `@Entity`
+
+An entity is a Java class that maps to a database table.
+
+Examples now in the project:
+
+- `AppUser -> app_user`
+- `StudyResource -> study_resource`
+- `Reservation -> reservation`
+
+The annotations on each field tell JPA how Java properties line up with table columns.
+
+### `JpaRepository`
+
+Repository interfaces give you common persistence operations without writing SQL by hand.
+
+For example, `AppUserRepository extends JpaRepository<AppUser, Long>` gives you methods like:
+
+- `save(...)`
+- `findById(...)`
+- `findAll(...)`
+- `deleteById(...)`
+
+This is one of the core productivity features of Spring Data JPA.
+
 ## Current Limitations
 
 - security still uses Spring's generated development password
