@@ -17,3 +17,9 @@ spring:
 
 server:
   port: ${SPACEH_BACKEND_PORT:8080}
+
+spaceh:
+  security:
+    jwt:
+      secret: ${SPACEH_JWT_SECRET:spaceh-development-secret-spaceh-development-secret}
+      expiration-minutes: ${SPACEH_JWT_EXPIRATION_MINUTES:120}
