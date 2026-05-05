@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { BookOpen, CheckCircle2, Clock, Eye, HelpCircle, LogIn, MapPin, Search } from "lucide-react";
+import { CheckCircle2, Clock, Eye, HelpCircle, LogIn, MapPin, Search } from "lucide-react";
 import girlReadingImage from "../../../assets/girl-reading-1.webp";
 import manReadingOneImage from "../../../assets/man-reading-1.webp";
 import manReadingTwoImage from "../../../assets/man-reading-2.webp";
@@ -14,8 +14,8 @@ const heroSlides = [
 
 export default function LandingPage() {
   return (
-    <div className="space-y-20 pb-24">
-      <section className="relative isolate min-h-[calc(100dvh-4rem)] overflow-hidden px-4 py-10 sm:px-6 lg:px-8">
+    <div className="pb-24">
+      <section className="relative isolate min-h-[720px] overflow-hidden px-4 py-10 sm:min-h-[760px] sm:px-6 lg:min-h-[720px] lg:px-8 xl:min-h-[760px]">
         <div className="spaceh-hero-media absolute inset-x-0 bottom-0 h-[40%] overflow-hidden sm:h-[42%] lg:inset-y-0 lg:left-auto lg:right-0 lg:h-auto lg:w-[60%]" aria-hidden="true">
           <div className="spaceh-hero-image-pane absolute inset-0">
             {heroSlides.map((slide, index) => (
@@ -35,17 +35,13 @@ export default function LandingPage() {
         </div>
         <div className="spaceh-hero-diagonal-blend absolute inset-0" aria-hidden="true" />
 
-        <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-6rem)] max-w-7xl items-start lg:items-center">
-          <div className="w-full pb-[56dvh] pt-8 sm:pt-12 lg:max-w-[49%] lg:py-16 xl:max-w-[51%]">
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-walnut/10 bg-parchment/70 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-walnut/50">
-              <BookOpen className="h-4 w-4 text-oxblood" aria-hidden="true" />
-              University Library Space System
-            </p>
-            <h1 className="spaceh-hero-title mb-8 max-w-3xl font-serif text-walnut text-balance">
+        <div className="relative z-10 mx-auto flex min-h-[620px] max-w-7xl items-start sm:min-h-[660px] lg:min-h-[640px] xl:min-h-[680px]">
+          <div className="w-full pb-[47dvh] pt-14 sm:pt-16 lg:max-w-[50%] lg:pt-20 xl:max-w-[52%] xl:pt-24">
+            <h1 className="spaceh-hero-title mb-7 max-w-3xl font-serif text-walnut text-balance">
               Find an open library seat. <br />
               <span className="italic text-oxblood">Right now.</span>
             </h1>
-            <p className="mb-12 max-w-2xl text-lg leading-relaxed text-walnut/70 sm:text-xl">
+            <p className="mb-10 max-w-2xl text-lg leading-relaxed text-walnut/70 sm:text-xl">
               Check live availability, reserve a desk or room, and keep library spaces moving fairly during peak hours.
             </p>
 
@@ -69,9 +65,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-walnut/5 py-24">
+      <section className="bg-walnut/5 pb-24 pt-14 lg:pt-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto mb-20 max-w-2xl text-center">
+          <div className="mx-auto mb-16 max-w-2xl text-center">
             <h2 className="mb-6 text-4xl font-serif">How Space.h Works</h2>
             <p className="text-walnut/60">A simple flow for fair reservations, check-ins, and check-outs.</p>
           </div>
@@ -85,7 +81,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="mx-auto mt-20 max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
           <div className="space-y-8">
             <h2 className="text-4xl font-serif">Library Rules That Matter</h2>
