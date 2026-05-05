@@ -36,3 +36,16 @@ target
 
 # Java
 .gradle
+
+# AI-generated local context artifacts
+AGENTS.md
+PRODUCT.md
+DESIGN.md
+.impeccable.md
+.agents/context/PRODUCT.md
+.agents/context/DESIGN.md
+docs/PRODUCT.md
+docs/DESIGN.md
+
+# Local git worktrees
+.worktrees/

@@ -1,661 +1,473 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router";
-import { ArrowLeft, Plus, LogIn, LogOut, Trash2, MapPin, Clock, Zap, AlertTriangle, History, Search } from "lucide-react";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
-import { Label } from "./ui/label";
-import { Input } from "./ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Alert, AlertDescription } from "./ui/alert";
+import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Filter, MapPin, Search, Users, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { ThemeToggle } from "./ui/ThemeToggle";
 import {
-  enhancedUsers,
-  enhancedResources,
-  enhancedReservations,
   enhancedAttendanceLogs,
-  type User,
-  type StudyResource,
-  type ReservationTransaction,
+  enhancedReservations,
+  enhancedResources,
+  enhancedUsers,
   type AttendanceLogTransaction,
+  type ReservationTransaction,
+  type StudyResource,
 } from "../data/enhancedMockData";
 
 export default function StudentDashboard() {
-  const currentUser = enhancedUsers.find(u => u.role === 'Student') || enhancedUsers[0];
+  const currentUser = enhancedUsers.find((user) => user.role === "Student") ?? enhancedUsers[0];
   const [resources, setResources] = useState<StudyResource[]>(enhancedResources);
   const [reservations, setReservations] = useState<ReservationTransaction[]>(enhancedReservations);
   const [attendanceLogs, setAttendanceLogs] = useState<AttendanceLogTransaction[]>(enhancedAttendanceLogs);
+  const [filterFloor, setFilterFloor] = useState("all");
+  const [filterZone, setFilterZone] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [powerOnly, setPowerOnly] = useState(false);
+  const [selectedResource, setSelectedResource] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [coBookers, setCoBookers] = useState("");
 
-  // Booking form state
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedResource, setSelectedResource] = useState<string>("");
-  const [startTime, setStartTime] = useState<string>("");
-  const [endTime, setEndTime] = useState<string>("");
-  const [coBookers, setCoBookers] = useState<string>("");
-
-  // Filters
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [filterFloor, setFilterFloor] = useState<string>("all");
-  const [filterZone, setFilterZone] = useState<string>("all");
-  const [filterPowerOutlet, setFilterPowerOutlet] = useState<boolean>(false);
-
-  const zones = ["all", "Silent Zone", "Collaborative Zone", "Computer Lab"];
-  const floors = ["all", "1", "2", "3"];
-
-  // Get user's active reservation (Business Rule 2: One active reservation max)
   const activeReservation = reservations.find(
-    r => r.user_id === currentUser.user_id &&
-      (r.booking_status === 'Pending' || r.booking_status === 'Active')
+    (reservation) =>
+      reservation.user_id === currentUser.user_id &&
+      (reservation.booking_status === "Pending" || reservation.booking_status === "Active")
   );
 
-  // Get user's active check-in
-  const activeCheckIn = attendanceLogs.find(
-    log => {
-      const reservation = reservations.find(r => r.reservation_id === log.reservation_id);
-      return reservation?.user_id === currentUser.user_id && log.actual_check_out === null;
-    }
-  );
-
-  // Check if user is banned (Business Rule 10: 24-hour penalty)
-  const isBanned = currentUser.is_banned_until
-    ? new Date(currentUser.is_banned_until) > new Date()
-    : false;
-
-  // Filter available resources
-  const availableResources = resources.filter(r => {
-    if (r.current_status !== 'Available') return false;
-
-    const matchesSearch = r.resource_name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFloor = filterFloor === "all" || r.floor.toString() === filterFloor;
-    const matchesZone = filterZone === "all" || r.zone_location === filterZone;
-    const matchesPowerOutlet = !filterPowerOutlet || r.has_power_outlet === true;
-
-    return matchesSearch && matchesFloor && matchesZone && matchesPowerOutlet;
+  const activeCheckIn = attendanceLogs.find((log) => {
+    const reservation = reservations.find((item) => item.reservation_id === log.reservation_id);
+    return reservation?.user_id === currentUser.user_id && log.actual_check_out === null;
   });
 
-  // Auto-cancel reservations if not checked in within 15 minutes (Business Rule 5)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      reservations.forEach(reservation => {
-        if (reservation.booking_status === 'Pending') {
-          const startTime = new Date(reservation.start_time);
-          const minutesSinceStart = (now.getTime() - startTime.getTime()) / (1000 * 60);
+  const activeResource = activeReservation
+    ? resources.find((resource) => resource.resource_id === activeReservation.resource_id)
+    : null;
 
-          if (minutesSinceStart > 15) {
-            handleAutoCancelReservation(reservation.reservation_id);
-          }
-        }
-      });
-    }, 60000); // Check every minute
+  const isBanned = currentUser.is_banned_until ? new Date(currentUser.is_banned_until) > new Date() : false;
 
-    return () => clearInterval(interval);
-  }, [reservations]);
+  const zones = Array.from(new Set(resources.map((resource) => resource.zone_location)));
+  const floors = Array.from(new Set(resources.map((resource) => resource.floor))).sort();
 
-  const handleAutoCancelReservation = (reservationId: string) => {
-    const reservation = reservations.find(r => r.reservation_id === reservationId);
-    if (!reservation) return;
+  const filteredResources = useMemo(() => {
+    return resources.filter((resource) => {
+      const matchesSearch =
+        resource.resource_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        resource.resource_id.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFloor = filterFloor === "all" || resource.floor.toString() === filterFloor;
+      const matchesZone = filterZone === "all" || resource.zone_location === filterZone;
+      const matchesPower = !powerOnly || resource.has_power_outlet;
 
-    setReservations(prev =>
-      prev.map(r =>
-        r.reservation_id === reservationId ? { ...r, booking_status: 'No-show' as const } : r
-      )
-    );
+      return matchesSearch && matchesFloor && matchesZone && matchesPower;
+    });
+  }, [filterFloor, filterZone, powerOnly, resources, searchQuery]);
 
-    setResources(prev =>
-      prev.map(r =>
-        r.resource_id === reservation.resource_id ? { ...r, current_status: 'Available' as const } : r
-      )
-    );
+  const reservableResources = resources.filter((resource) => resource.current_status === "Available");
 
-    toast.error("Reservation auto-cancelled: No check-in within 15 minutes");
-  };
-
-  // CREATE - Book a resource (Transaction 1)
-  const handleBooking = () => {
-    // Business Rule 2: Check if user already has an active reservation
+  const handleBooking = (resourceId = selectedResource) => {
     if (activeReservation) {
       toast.error("You already have an active reservation. Only one booking at a time is allowed.");
       return;
     }
 
-    // Check if user is banned
     if (isBanned) {
-      toast.error("You are temporarily banned from booking due to not checking out from your last session.");
+      toast.error("You are temporarily blocked from booking because of a missed checkout.");
       return;
     }
 
-    if (!selectedResource || !startTime || !endTime) {
-      toast.error("Please fill in all required fields");
+    if (!resourceId || !startTime || !endTime) {
+      toast.error("Choose a resource plus start and end times.");
       return;
     }
 
-    const resource = resources.find(r => r.resource_id === selectedResource);
-    if (!resource) {
-      toast.error("Resource not found");
+    const resource = resources.find((item) => item.resource_id === resourceId);
+    if (!resource || resource.current_status !== "Available") {
+      toast.error("That space is no longer available.");
       return;
     }
 
-    // Business Rule 3: Check 4-hour maximum duration for individual seats
-    if (resource.resource_type === 'Individual Seat') {
-      const duration = (new Date(endTime).getTime() - new Date(startTime).getTime()) / (1000 * 60 * 60);
-      if (duration > 4) {
-        toast.error("Individual seats can only be booked for a maximum of 4 hours");
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      toast.error("Choose a valid time range.");
+      return;
+    }
+
+    if (resource.resource_type === "Individual Seat") {
+      const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      if (hours > 4) {
+        toast.error("Individual seats can only be booked for a maximum of 4 hours.");
         return;
       }
     }
 
-    // Business Rule 6: Group Study Rooms require minimum 3 student IDs
-    if (resource.resource_type === 'Group Study Room' && !resource.is_faculty_exclusive) {
-      const coBookerIds = coBookers.split(',').map(id => id.trim()).filter(id => id);
-      if (coBookerIds.length < 2) {
-        toast.error("Group Study Rooms require at least 3 participants (you + 2 others)");
-        return;
-      }
+    const coBookerIds = coBookers.split(",").map((id) => id.trim()).filter(Boolean);
+    if (resource.resource_type === "Group Study Room" && !resource.is_faculty_exclusive && coBookerIds.length < 2) {
+      toast.error("Group Study Rooms require at least 3 participants: you plus 2 others.");
+      return;
     }
 
-    // Business Rule 8: Check for overlapping reservations
-    const hasConflict = reservations.some(
-      r =>
-        r.resource_id === selectedResource &&
-        r.booking_status !== 'Cancelled' &&
-        r.booking_status !== 'No-show' &&
-        ((startTime >= r.start_time && startTime < r.end_time) ||
-          (endTime > r.start_time && endTime <= r.end_time))
-    );
+    const hasConflict = reservations.some((reservation) => {
+      if (reservation.resource_id !== resourceId || reservation.booking_status === "Cancelled" || reservation.booking_status === "No-show") {
+        return false;
+      }
+      const existingStart = new Date(reservation.start_time);
+      const existingEnd = new Date(reservation.end_time);
+      return start < existingEnd && end > existingStart;
+    });
 
     if (hasConflict) {
-      toast.error("This resource is already booked during the selected time");
+      toast.error("This space is already booked during the selected time.");
       return;
     }
 
-    // Create new reservation
-    const coBookerIds = coBookers.split(',').map(id => id.trim()).filter(id => id);
     const newReservation: ReservationTransaction = {
-      reservation_id: `RES${String(reservations.length + 1).padStart(3, '0')}`,
+      reservation_id: `RES${String(reservations.length + 1).padStart(3, "0")}`,
       user_id: currentUser.user_id,
-      resource_id: selectedResource,
-      start_time: startTime,
-      end_time: endTime,
-      booking_status: 'Pending',
+      resource_id: resourceId,
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      booking_status: "Pending",
       created_at: new Date().toISOString(),
       co_bookers: coBookerIds.length > 0 ? coBookerIds : undefined,
     };
 
-    setReservations([...reservations, newReservation]);
-    setResources(
-      resources.map(r =>
-        r.resource_id === selectedResource ? { ...r, current_status: 'Reserved' } : r
-      )
+    setReservations((current) => [...current, newReservation]);
+    setResources((current) =>
+      current.map((item) => (item.resource_id === resourceId ? { ...item, current_status: "Reserved" } : item))
     );
-
-    toast.success("Reservation created successfully!");
-    setDialogOpen(false);
     setSelectedResource("");
     setStartTime("");
     setEndTime("");
     setCoBookers("");
+    toast.success("Reservation created successfully.");
   };
 
-  // Check-in (Transaction 2)
   const handleCheckIn = () => {
     if (!activeReservation) return;
 
     const newLog: AttendanceLogTransaction = {
-      log_id: `LOG${String(attendanceLogs.length + 1).padStart(3, '0')}`,
+      log_id: `LOG${String(attendanceLogs.length + 1).padStart(3, "0")}`,
       reservation_id: activeReservation.reservation_id,
       actual_check_in: new Date().toISOString(),
       actual_check_out: null,
     };
 
-    setAttendanceLogs([...attendanceLogs, newLog]);
-    setReservations(
-      reservations.map(r =>
-        r.reservation_id === activeReservation.reservation_id
-          ? { ...r, booking_status: 'Active' }
-          : r
+    setAttendanceLogs((current) => [...current, newLog]);
+    setReservations((current) =>
+      current.map((reservation) =>
+        reservation.reservation_id === activeReservation.reservation_id ? { ...reservation, booking_status: "Active" } : reservation
       )
     );
-    setResources(
-      resources.map(r =>
-        r.resource_id === activeReservation.resource_id
-          ? { ...r, current_status: 'Occupied' }
-          : r
+    setResources((current) =>
+      current.map((resource) =>
+        resource.resource_id === activeReservation.resource_id ? { ...resource, current_status: "Occupied" } : resource
       )
     );
-
-    toast.success("Checked in successfully!");
+    toast.success("Checked in successfully.");
   };
 
-  // Check-out (Transaction 2 completion)
   const handleCheckOut = () => {
     if (!activeCheckIn) return;
-
-    const reservation = reservations.find(r => r.reservation_id === activeCheckIn.reservation_id);
+    const reservation = reservations.find((item) => item.reservation_id === activeCheckIn.reservation_id);
     if (!reservation) return;
 
-    setAttendanceLogs(
-      attendanceLogs.map(log =>
-        log.log_id === activeCheckIn.log_id
-          ? { ...log, actual_check_out: new Date().toISOString() }
-          : log
-      )
+    setAttendanceLogs((current) =>
+      current.map((log) => (log.log_id === activeCheckIn.log_id ? { ...log, actual_check_out: new Date().toISOString() } : log))
     );
-    setReservations(
-      reservations.map(r =>
-        r.reservation_id === activeCheckIn.reservation_id
-          ? { ...r, booking_status: 'Completed' }
-          : r
-      )
+    setReservations((current) =>
+      current.map((item) => (item.reservation_id === reservation.reservation_id ? { ...item, booking_status: "Completed" } : item))
     );
-    setResources(
-      resources.map(r =>
-        r.resource_id === reservation.resource_id
-          ? { ...r, current_status: 'Available' }
-          : r
-      )
+    setResources((current) =>
+      current.map((resource) => (resource.resource_id === reservation.resource_id ? { ...resource, current_status: "Available" } : resource))
     );
-
-    toast.success("Checked out successfully!");
+    toast.success("Checked out successfully.");
   };
 
-  // Business Rule 7: Cancel reservation
   const handleCancelReservation = () => {
     if (!activeReservation) return;
-
-    const now = new Date();
-    const startTime = new Date(activeReservation.start_time);
-    const minutesUntilStart = (startTime.getTime() - now.getTime()) / (1000 * 60);
+    const minutesUntilStart = (new Date(activeReservation.start_time).getTime() - Date.now()) / (1000 * 60);
 
     if (minutesUntilStart < 30) {
-      toast.error("Reservations can only be cancelled at least 30 minutes before the start time");
+      toast.error("Reservations can only be cancelled at least 30 minutes before the start time.");
       return;
     }
 
-    setReservations(
-      reservations.map(r =>
-        r.reservation_id === activeReservation.reservation_id
-          ? { ...r, booking_status: 'Cancelled' }
-          : r
+    setReservations((current) =>
+      current.map((reservation) =>
+        reservation.reservation_id === activeReservation.reservation_id ? { ...reservation, booking_status: "Cancelled" } : reservation
       )
     );
-    setResources(
-      resources.map(r =>
-        r.resource_id === activeReservation.resource_id
-          ? { ...r, current_status: 'Available' }
-          : r
+    setResources((current) =>
+      current.map((resource) =>
+        resource.resource_id === activeReservation.resource_id ? { ...resource, current_status: "Available" } : resource
       )
     );
-
-    toast.success("Reservation cancelled");
+    toast.success("Reservation cancelled.");
   };
 
-  const activeResource = activeReservation
-    ? resources.find(r => r.resource_id === activeReservation.resource_id)
-    : null;
-
   return (
-    <div className="min-h-screen bg-background paper-texture relative overflow-hidden">
-      {/* Global Grain/Noise Overlay */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.015] z-[100] bg-[url('https://www.transparenttextures.com/patterns/asfalt-dark.png')]" />
+    <div className="mx-auto max-w-7xl space-y-12 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+        <div>
+          <h1 className="mb-2 text-4xl font-serif">Student Dashboard</h1>
+          <p className="font-serif text-lg italic leading-none text-walnut/60">Welcome back, {currentUser.full_name}.</p>
+        </div>
+        <div className="academic-border flex gap-4 rounded-2xl bg-walnut/5 p-4">
+          <StatusMetric label="Account Status" value={currentUser.account_status} tone="moss" />
+          <div className="w-px bg-walnut/10" />
+          <StatusMetric label="Booking Hold" value={isBanned ? "Active" : "None"} tone={isBanned ? "oxblood" : "walnut"} />
+        </div>
+      </div>
 
-      {/* Floating atmospheric gradients */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[20%] right-[-5%] w-[30%] h-[30%] bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
+      <section>
+        <div className="mb-6 flex items-center gap-2">
+          <Clock className="h-5 w-5 text-oxblood" aria-hidden="true" />
+          <h2 className="text-2xl font-serif">Active Reservation</h2>
+        </div>
 
-      {/* Header */}
-      <header className="bg-card/80 backdrop-blur-md border-b border-border shadow-md sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/">
-                <Button variant="ghost" size="sm" className="hover:bg-primary/10">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back
-                </Button>
-              </Link>
-              <h1 className="text-2xl" style={{ fontFamily: 'var(--font-heading)' }}>Student Portal</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <ThemeToggle />
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground uppercase tracking-widest">Chronicle of</p>
-                <p className="font-medium text-primary">{currentUser.full_name}</p>
+        {activeReservation && activeResource ? (
+          <div className="academic-border premium-shadow relative overflow-hidden rounded-2xl bg-walnut p-8 text-parchment">
+            <div className="absolute right-0 top-0 h-28 w-28 translate-x-8 -translate-y-8 rounded-full bg-oxblood/10" aria-hidden="true" />
+            <div className="relative flex flex-col justify-between gap-12 md:flex-row">
+              <div className="space-y-6">
+                <div>
+                  <p className="mb-2 text-xs uppercase tracking-widest text-parchment/40">Workspace</p>
+                  <h3 className="text-3xl font-serif text-parchment">{activeResource.resource_name}</h3>
+                  <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-parchment/60">
+                    <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" aria-hidden="true" /> {activeResource.zone_location}</span>
+                    {activeResource.has_power_outlet && <span className="flex items-center gap-1.5"><Zap className="h-4 w-4" aria-hidden="true" /> Power Outlet</span>}
+                    {activeResource.capacity && <span className="flex items-center gap-1.5"><Users className="h-4 w-4" aria-hidden="true" /> Fits {activeResource.capacity}</span>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-1 text-xs uppercase tracking-widest text-parchment/40">Reservation Window</p>
+                    <p className="font-mono text-lg tabular-nums">{formatRange(activeReservation.start_time, activeReservation.end_time)}</p>
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs uppercase tracking-widest text-parchment/40">Status</p>
+                    <div className="flex items-center gap-2 text-candlelight">
+                      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                      <span className="text-sm font-medium">{activeReservation.booking_status}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex min-w-[220px] flex-col justify-end gap-3">
+                {activeCheckIn ? (
+                  <button type="button" onClick={handleCheckOut} className="rounded-xl bg-oxblood py-4 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-candlelight/40">
+                    Check Out Now
+                  </button>
+                ) : (
+                  <button type="button" onClick={handleCheckIn} className="rounded-xl bg-oxblood py-4 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-candlelight/40">
+                    Check In
+                  </button>
+                )}
+                <button type="button" onClick={handleCancelReservation} className="rounded-xl border border-parchment/20 bg-parchment/10 py-4 font-medium text-parchment/80 transition-colors hover:bg-parchment/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-candlelight/40">
+                  Cancel Reservation
+                </button>
               </div>
             </div>
           </div>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-6 py-12 relative z-10">
-        {/* Penalty Alert */}
-        {isBanned && (
-          <Alert className="mb-6 border-destructive bg-destructive/10">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-            <AlertDescription className="text-destructive">
-              You are temporarily banned from booking until{" "}
-              {new Date(currentUser.is_banned_until!).toLocaleString()} due to not checking out from your last session.
-            </AlertDescription>
-          </Alert>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-walnut/20 bg-walnut/5 p-12 text-center">
+            <p className="italic text-walnut/45">No active reservations. Use the booking panel below to secure a space.</p>
+          </div>
         )}
+      </section>
 
-        {/* Active Booking Card */}
-        {activeReservation && (
-          <Card className="mb-10 border-moss/30 bg-card/40 backdrop-blur-md shadow-xl relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-tr from-moss/5 to-transparent pointer-events-none" />
-            <CardHeader className="relative z-10">
-              <CardTitle className="flex items-center justify-between">
-                <span style={{ fontFamily: 'var(--font-heading)' }}>Your Active Booking</span>
-                <Badge className="bg-moss/20 text-moss border-moss/30">
-                  {activeReservation.booking_status}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="relative z-10">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-2xl font-medium mb-2" style={{ fontFamily: 'var(--font-heading)' }}>{activeResource?.resource_name}</p>
-                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {activeResource?.zone_location} - Floor {activeResource?.floor}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      {new Date(activeReservation.start_time).toLocaleString()} -{" "}
-                      {new Date(activeReservation.end_time).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                    {activeResource?.has_power_outlet && (
-                      <span className="flex items-center gap-1">
-                        <Zap className="h-4 w-4 text-candlelight" />
-                        Power Outlet
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  {activeReservation.booking_status === 'Pending' && !activeCheckIn && (
-                    <>
-                      <Button onClick={handleCheckIn} size="lg" className="flex-1">
-                        <LogIn className="mr-2 h-5 w-5" />
-                        CHECK IN
-                      </Button>
-                      <Button onClick={handleCancelReservation} variant="destructive" size="lg">
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
-                    </>
-                  )}
-                  {activeCheckIn && (
-                    <Button onClick={handleCheckOut} size="lg" className="flex-1 bg-moss hover:bg-moss/90 text-primary-foreground">
-                      <LogOut className="mr-2 h-5 w-5" />
-                      CHECK OUT
-                    </Button>
-                  )}
-                </div>
-
-                {activeReservation.booking_status === 'Pending' && (
-                  <Alert>
-                    <Clock className="h-4 w-4" />
-                    <AlertDescription>
-                      Please check in within 15 minutes of your start time, or your reservation will be automatically cancelled.
-                    </AlertDescription>
-                  </Alert>
-                )}
+      <section className="grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="space-y-8">
+          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div className="w-full md:max-w-md">
+              <h2 className="mb-6 flex items-center gap-2 text-2xl font-serif">
+                <Search className="h-5 w-5 text-oxblood" aria-hidden="true" />
+                Find an available seat
+              </h2>
+              <label htmlFor="resource-search" className="sr-only">Search by resource name or ID</label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-walnut/25" aria-hidden="true" />
+                <input
+                  id="resource-search"
+                  name="resource-search"
+                  type="search"
+                  placeholder="Search by seat number or feature..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="academic-border w-full rounded-xl bg-parchment py-4 pl-12 pr-4 transition-colors placeholder:text-walnut/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+                />
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
 
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="find-seat" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="find-seat">Find a Seat</TabsTrigger>
-            <TabsTrigger value="history">My History</TabsTrigger>
-          </TabsList>
+            <div className="flex flex-wrap items-end gap-4">
+              <SelectField label="Floor" value={filterFloor} onChange={setFilterFloor}>
+                <option value="all">All Floors</option>
+                {floors.map((floor) => <option key={floor} value={floor}>Floor {floor}</option>)}
+              </SelectField>
+              <SelectField label="Zone Type" value={filterZone} onChange={setFilterZone}>
+                <option value="all">Any Zone</option>
+                {zones.map((zone) => <option key={zone} value={zone}>{zone}</option>)}
+              </SelectField>
+              <label className="flex h-[46px] items-center gap-2 rounded-xl bg-walnut px-4 text-sm font-medium text-parchment">
+                <input type="checkbox" checked={powerOnly} onChange={(event) => setPowerOnly(event.target.checked)} className="h-4 w-4 accent-candlelight" />
+                <Filter className="h-4 w-4" aria-hidden="true" />
+                Power
+              </label>
+            </div>
+          </div>
 
-          {/* Find a Seat Tab */}
-          <TabsContent value="find-seat" className="space-y-6">
-            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg overflow-hidden relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
-              <CardHeader className="relative z-10">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Find a Seat</CardTitle>
-                    <CardDescription>Search and filter available study spaces</CardDescription>
-                  </div>
-                  {!activeReservation && (
-                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button disabled={isBanned}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          New Booking
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Create Reservation</DialogTitle>
-                          <DialogDescription>
-                            Book your study space (Max 4 hours for individual seats)
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="resource">Resource</Label>
-                            <Select value={selectedResource} onValueChange={setSelectedResource}>
-                              <SelectTrigger id="resource">
-                                <SelectValue placeholder="Select a resource" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableResources.map(resource => (
-                                  <SelectItem key={resource.resource_id} value={resource.resource_id}>
-                                    {resource.resource_name} - {resource.zone_location}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label htmlFor="start-time">Start Time</Label>
-                            <Input
-                              id="start-time"
-                              type="datetime-local"
-                              value={startTime}
-                              onChange={e => setStartTime(e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="end-time">End Time</Label>
-                            <Input
-                              id="end-time"
-                              type="datetime-local"
-                              value={endTime}
-                              onChange={e => setEndTime(e.target.value)}
-                            />
-                          </div>
-                          {selectedResource &&
-                            resources.find(r => r.resource_id === selectedResource)?.resource_type ===
-                            'Group Study Room' && (
-                              <div>
-                                <Label htmlFor="co-bookers">
-                                  Co-Bookers (Student IDs, comma-separated, min 2)
-                                </Label>
-                                <Input
-                                  id="co-bookers"
-                                  placeholder="U002, U003"
-                                  value={coBookers}
-                                  onChange={e => setCoBookers(e.target.value)}
-                                />
-                              </div>
-                            )}
-                          <Button onClick={handleBooking} className="w-full">
-                            Confirm Booking
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {/* Search and Filters */}
-                <div className="space-y-3 mb-6">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search resources..."
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <Select value={filterFloor} onValueChange={setFilterFloor}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Floor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {floors.map(floor => (
-                          <SelectItem key={floor} value={floor}>
-                            {floor === "all" ? "All Floors" : `Floor ${floor}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={filterZone} onValueChange={setFilterZone}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {zones.map(zone => (
-                          <SelectItem key={zone} value={zone}>
-                            {zone === "all" ? "All Zones" : zone}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant={filterPowerOutlet ? "default" : "outline"}
-                      onClick={() => setFilterPowerOutlet(!filterPowerOutlet)}
-                      className="col-span-2 md:col-span-2"
-                    >
-                      <Zap className="mr-2 h-4 w-4" />
-                      Power Outlet Only
-                    </Button>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {filteredResources.map((resource) => (
+              <SpaceCard
+                key={resource.resource_id}
+                resource={resource}
+                selected={selectedResource === resource.resource_id}
+                onSelect={() => setSelectedResource(resource.resource_id)}
+              />
+            ))}
+          </div>
+        </div>
 
-                {/* Available Resources */}
-                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar relative z-10">
-                  {availableResources.length === 0 ? (
-                    <div className="text-center py-12 border-2 border-dashed border-border/30 rounded-xl bg-muted/5">
-                      <Search className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                      <p className="text-muted-foreground italic">No resources match your filters</p>
-                    </div>
-                  ) : (
-                    availableResources.map(resource => (
-                      <div
-                        key={resource.resource_id}
-                        className="flex items-center justify-between p-5 border border-border/50 rounded-xl bg-card/30 hover:bg-primary/5 transition-all duration-300 group/item hover:border-primary/30"
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium text-lg text-foreground group-hover/item:text-primary transition-colors" style={{ fontFamily: 'var(--font-heading)' }}>{resource.resource_name}</p>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-background/50">
-                              {resource.resource_type}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              Floor {resource.floor} • {resource.zone_location}
-                            </span>
-                            {resource.has_power_outlet && (
-                              <span className="text-xs text-candlelight flex items-center gap-1">
-                                <Zap className="h-3 w-3 fill-candlelight" />
-                                Power
-                              </span>
-                            )}
-                            {resource.capacity && (
-                              <span className="text-xs text-muted-foreground">
-                                Capacity: {resource.capacity}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <Badge className="bg-moss/20 text-moss border-moss/30 px-3 py-1 font-medium">Available</Badge>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+        <aside className="academic-border sticky top-24 h-fit rounded-2xl bg-parchment p-6 shadow-[0_4px_20px_rgba(45,36,30,0.06)]">
+          <h2 className="mb-2 text-xl font-serif">Create Reservation</h2>
+          <p className="mb-6 text-sm text-walnut/60">Select an open space, then choose a reservation window.</p>
 
-          {/* History Tab */}
-          <TabsContent value="history">
-            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg overflow-hidden relative">
-              <div className="absolute inset-0 bg-gradient-to-bl from-accent/5 via-transparent to-transparent pointer-events-none" />
-              <CardHeader className="relative z-10">
-                <CardTitle className="flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-                  <History className="h-5 w-5" />
-                  My Booking History
-                </CardTitle>
-                <CardDescription>View all your past and current reservations</CardDescription>
-              </CardHeader>
-              <CardContent className="relative z-10">
-                <div className="space-y-3">
-                  {reservations
-                    .filter(r => r.user_id === currentUser.user_id)
-                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                    .map(reservation => {
-                      const resource = resources.find(r => r.resource_id === reservation.resource_id);
-                      return (
-                        <div key={reservation.reservation_id} className="p-5 border border-border/50 rounded-xl bg-card/30 hover:bg-muted/30 transition-all">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="font-medium text-lg" style={{ fontFamily: 'var(--font-heading)' }}>{resource?.resource_name}</p>
-                              <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3.5 w-3.5" />
-                                  {new Date(reservation.start_time).toLocaleDateString()} |{" "}
-                                  {new Date(reservation.start_time).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                  {" - "}
-                                  {new Date(reservation.end_time).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
-                              </div>
-                            </div>
-                            <Badge
-                              className={
-                                reservation.booking_status === 'Completed'
-                                  ? 'bg-primary/20 text-primary border-primary/30'
-                                  : reservation.booking_status === 'Cancelled'
-                                    ? 'bg-destructive/20 text-destructive border-destructive/30'
-                                    : 'bg-accent/20 text-accent border-accent/30'
-                              }
-                            >
-                              {reservation.booking_status}
-                            </Badge>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          <div className="space-y-4">
+            <SelectField label="Resource" value={selectedResource} onChange={setSelectedResource}>
+              <option value="">Choose a space</option>
+              {reservableResources.map((resource) => (
+                <option key={resource.resource_id} value={resource.resource_id}>
+                  {resource.resource_name}
+                </option>
+              ))}
+            </SelectField>
+
+            <TextField id="student-start" label="Start Time" type="datetime-local" value={startTime} onChange={setStartTime} />
+            <TextField id="student-end" label="End Time" type="datetime-local" value={endTime} onChange={setEndTime} />
+            <TextField id="co-bookers" label="Co-booker IDs" value={coBookers} onChange={setCoBookers} placeholder="U005, U009" />
+
+            <button type="button" onClick={() => handleBooking()} className="w-full rounded-xl bg-oxblood py-3 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
+              Reserve Space
+            </button>
+          </div>
+        </aside>
+      </section>
+
+      <section className="flex items-start gap-6 rounded-2xl border border-oxblood/10 bg-oxblood/[0.03] p-8">
+        <AlertTriangle className="mt-1 h-6 w-6 shrink-0 text-oxblood" aria-hidden="true" />
+        <div className="space-y-2">
+          <h2 className="text-xl font-serif">Operational Notice</h2>
+          <p className="max-w-3xl text-sm leading-relaxed text-walnut/70">
+            Booking a space implies acceptance of the 15-minute grace period, 30-minute cancellation window, and check-out responsibility rules.
+          </p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function StatusMetric({ label, value, tone }: { label: string; value: string; tone: "moss" | "oxblood" | "walnut" }) {
+  const color = tone === "moss" ? "text-moss" : tone === "oxblood" ? "text-oxblood" : "text-walnut";
+  return (
+    <div className="text-right">
+      <p className="text-[10px] font-medium uppercase tracking-widest text-walnut/40">{label}</p>
+      <p className={`text-sm font-semibold ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {
+  const id = label.toLowerCase().replace(/\s+/g, "-");
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="px-1 text-[10px] font-semibold uppercase tracking-widest text-walnut/40">{label}</label>
+      <div className="relative">
+        <select
+          id={id}
+          name={id}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="academic-border min-w-[150px] appearance-none rounded-xl bg-parchment py-3 pl-4 pr-10 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+        >
+          {children}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-walnut/40" aria-hidden="true" />
       </div>
     </div>
   );
+}
+
+function TextField({ id, label, value, onChange, type = "text", placeholder }: { id: string; label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string }) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="px-1 text-[10px] font-semibold uppercase tracking-widest text-walnut/40">{label}</label>
+      <input
+        id={id}
+        name={id}
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="academic-border w-full rounded-xl bg-parchment px-4 py-3 text-sm transition-colors placeholder:text-walnut/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+      />
+    </div>
+  );
+}
+
+function SpaceCard({ resource, selected, onSelect }: { resource: StudyResource; selected: boolean; onSelect: () => void }) {
+  const isAvailable = resource.current_status === "Available";
+
+  return (
+    <article className={`academic-border rounded-2xl p-6 transition-shadow ${isAvailable ? "bg-parchment hover:premium-shadow" : "bg-walnut/5 opacity-75"} ${selected ? "ring-2 ring-oxblood/25" : ""}`}>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="mb-1 truncate text-[10px] font-semibold uppercase tracking-widest text-walnut/40">
+            Floor {resource.floor} - {resource.zone_location}
+          </p>
+          <h3 className="truncate text-xl font-serif">{resource.resource_name}</h3>
+        </div>
+        <StatusBadge status={resource.current_status} />
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-3 text-xs font-medium text-walnut/60">
+        {resource.has_power_outlet && <span className="flex items-center gap-1.5 rounded-md bg-walnut/5 px-2 py-1"><Zap className="h-3.5 w-3.5 fill-candlelight text-candlelight" aria-hidden="true" /> Power Ready</span>}
+        {resource.capacity && <span className="flex items-center gap-1.5 rounded-md bg-walnut/5 px-2 py-1"><Users className="h-3.5 w-3.5" aria-hidden="true" /> Fits {resource.capacity}</span>}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-walnut/5 pt-6">
+        <span className="text-[10px] uppercase tracking-widest text-walnut/35">{resource.resource_id}</span>
+        <button
+          type="button"
+          disabled={!isAvailable}
+          onClick={onSelect}
+          className={`rounded-lg px-5 py-2 text-sm font-semibold tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20 ${
+            isAvailable ? "bg-walnut text-parchment hover:bg-oxblood" : "cursor-not-allowed bg-walnut/10 text-walnut/40"
+          }`}
+        >
+          {selected ? "Selected" : isAvailable ? "Select" : "Locked"}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function StatusBadge({ status }: { status: StudyResource["current_status"] }) {
+  const styles: Record<StudyResource["current_status"], string> = {
+    Available: "bg-moss/10 text-moss",
+    Occupied: "bg-walnut/10 text-walnut/50",
+    Reserved: "bg-oxblood/10 text-oxblood",
+    "Under Maintenance": "bg-candlelight/15 text-walnut",
+  };
+
+  return <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${styles[status]}`}>{status}</span>;
+}
+
+function formatRange(start: string, end: string) {
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${formatter.format(new Date(start))} - ${formatter.format(new Date(end))}`;
 }

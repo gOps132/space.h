@@ -5,7 +5,7 @@ import { Toaster } from "./components/ui/sonner";
 
 export default function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <RouterProvider router={router} />
       <Toaster />
     </ThemeProvider>
