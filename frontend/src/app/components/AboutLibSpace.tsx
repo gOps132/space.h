@@ -7,16 +7,9 @@ import { ThemeToggle } from "./ui/ThemeToggle";
 
 export default function AboutLibSpace() {
   return (
-    <div className="min-h-screen bg-background paper-texture relative overflow-hidden">
-      {/* Global Grain Overlay */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.015] z-[100] bg-[url('https://www.transparenttextures.com/patterns/asfalt-dark.png')]" />
-
-      {/* Floating atmospheric gradients */}
-      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[160px] pointer-events-none" />
-      <div className="absolute bottom-[10%] right-[-10%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[140px] pointer-events-none" />
-
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card/80 backdrop-blur-md border-b border-border shadow-md sticky top-0 z-50">
+      <header className="sticky top-0 z-50 border-b border-border bg-card shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Link to="/">
@@ -36,13 +29,12 @@ export default function AboutLibSpace() {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-12 max-w-5xl relative z-10">
+      <div className="container mx-auto max-w-5xl px-6 py-12">
         {/* Introduction */}
         <section className="mb-12">
           <h2 className="text-4xl mb-6 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>The Pain Point</h2>
-          <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
-            <CardContent className="pt-8 relative z-10">
+          <Card className="academic-border bg-card shadow-sm">
+            <CardContent className="pt-8">
               <h3 className="text-2xl font-medium mb-4" style={{ fontFamily: 'var(--font-heading)' }}>Inefficient Library Space Utilization</h3>
               <p className="text-muted-foreground leading-relaxed">
                 During peak periods (midterms and finals), students spend significant time wandering through different
@@ -57,20 +49,19 @@ export default function AboutLibSpace() {
         {/* Solution */}
         <section className="mb-16">
           <h2 className="text-4xl mb-6 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>The Solution</h2>
-          <Card className="bg-card/40 backdrop-blur-md border border-primary/20 shadow-xl overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
-            <CardContent className="pt-8 relative z-10">
+          <Card className="academic-border bg-card shadow-sm">
+            <CardContent className="pt-8">
               <h3 className="text-3xl font-medium mb-4 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>
-                &lt;Space.h&gt; – A Real-Time Seat & Room Reservation App
+                &lt;Space.h&gt;: A Real-Time Seat & Room Reservation App
               </h3>
               <p className="text-muted-foreground leading-relaxed">
                 A web-based platform that allows students to view a live map of the library, check real-time availability
                 of individual desks and group study rooms, and reserve them in advance. The system uses a Check-in/Check-out
                 mechanism to ensure that "ghost bookings" (reserved but empty seats) are automatically released for others to use.
               </p>
-              <div className="mt-6 p-6 bg-primary/5 rounded-2xl border border-primary/20 backdrop-blur-sm">
+              <div className="mt-6 rounded-lg border border-primary/20 bg-primary/5 p-6">
                 <p className="text-sm leading-relaxed italic">
-                  <span className="font-bold text-primary mr-1">💡 The Name:</span> In C programming, header files (libraries) end with ".h" —
+                  <span className="font-bold text-primary mr-1">The Name:</span> In C programming, header files (libraries) end with ".h";
                   so &lt;Space.h&gt; is both a library space and a programming library. A clever nod to the fusion of code and knowledge.
                 </p>
               </div>
@@ -82,7 +73,7 @@ export default function AboutLibSpace() {
         <section className="mb-16">
           <h2 className="text-4xl mb-6 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>Target Users</h2>
           <div className="grid md:grid-cols-2 gap-8">
-            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-md hover:bg-primary/5 transition-colors">
+            <Card className="academic-border bg-card shadow-sm transition-colors hover:bg-primary/5">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3" style={{ fontFamily: 'var(--font-heading)' }}>
                   <Users className="h-6 w-6 text-muted-foreground" />
@@ -96,7 +87,7 @@ export default function AboutLibSpace() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-md hover:bg-primary/5 transition-colors">
+            <Card className="academic-border bg-card shadow-sm transition-colors hover:bg-primary/5">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3" style={{ fontFamily: 'var(--font-heading)' }}>
                   <BookOpen className="h-6 w-6 text-primary" />
@@ -110,7 +101,7 @@ export default function AboutLibSpace() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-md hover:bg-primary/5 transition-colors">
+            <Card className="academic-border bg-card shadow-sm transition-colors hover:bg-primary/5">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3" style={{ fontFamily: 'var(--font-heading)' }}>
                   <Shield className="h-6 w-6 text-accent" />
@@ -124,7 +115,7 @@ export default function AboutLibSpace() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-md hover:bg-primary/5 transition-colors">
+            <Card className="academic-border bg-card shadow-sm transition-colors hover:bg-primary/5">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3" style={{ fontFamily: 'var(--font-heading)' }}>
                   <BarChart3 className="h-6 w-6 text-primary" />
@@ -232,8 +223,7 @@ export default function AboutLibSpace() {
           <h2 className="text-4xl mb-8 text-center text-primary" style={{ fontFamily: 'var(--font-heading)' }}>Explore the Portals</h2>
           <div className="grid md:grid-cols-3 gap-6">
             <Link to="/student" className="group">
-              <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg hover:shadow-2xl hover:border-primary/50 transition-all duration-300 h-full relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+              <Card className="academic-border h-full bg-card shadow-sm transition-colors duration-200 hover:border-primary/40 hover:bg-primary/5">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>
                     <BookOpen className="h-6 w-6 group-hover:scale-110 transition-transform" />
@@ -247,8 +237,7 @@ export default function AboutLibSpace() {
             </Link>
 
             <Link to="/faculty" className="group">
-              <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg hover:shadow-2xl hover:border-accent/50 transition-all duration-300 h-full relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent pointer-events-none" />
+              <Card className="academic-border h-full bg-card shadow-sm transition-colors duration-200 hover:border-accent/40 hover:bg-accent/5">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-accent" style={{ fontFamily: 'var(--font-heading)' }}>
                     <Shield className="h-6 w-6 group-hover:scale-110 transition-transform" />
@@ -262,8 +251,7 @@ export default function AboutLibSpace() {
             </Link>
 
             <Link to="/admin" className="group">
-              <Card className="border-border/50 bg-card/40 backdrop-blur-md shadow-lg hover:shadow-2xl hover:border-primary/50 transition-all duration-300 h-full relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+              <Card className="academic-border h-full bg-card shadow-sm transition-colors duration-200 hover:border-primary/40 hover:bg-primary/5">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3 text-primary" style={{ fontFamily: 'var(--font-heading)' }}>
                     <BarChart3 className="h-6 w-6 group-hover:scale-110 transition-transform" />

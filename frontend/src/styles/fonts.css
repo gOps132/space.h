@@ -3,8 +3,8 @@
 /* Headings: Classic Serif */
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&display=swap');
 
-/* Body: Old-style Serif */
-@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap');
+/* Body and headings */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap');
 
 /* Accent: Elegant Script */
 @import url('https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap');
