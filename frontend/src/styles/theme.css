@@ -286,3 +286,114 @@
     opacity: 0.8;
   }
 }
+
+.spaceh-hero-media {
+  clip-path: polygon(0 18%, 100% 0, 100% 100%, 0 100%);
+}
+
+.spaceh-hero-image-pane {
+  background: var(--muted);
+}
+
+.spaceh-hero-title {
+  font-size: clamp(2.85rem, 10.4vw, 3.75rem);
+  line-height: 1.04;
+}
+
+.spaceh-hero-slide {
+  animation:
+    spaceh-hero-dissolve 32s ease-in-out infinite,
+    spaceh-hero-pan 32s ease-in-out infinite;
+  filter: saturate(0.78) contrast(0.9) brightness(1.12);
+  opacity: 0;
+  transform: scale(1.06) translate3d(-1.5%, -1%, 0);
+  transform-origin: center;
+  will-change: opacity, transform;
+}
+
+.spaceh-hero-photo-bokeh {
+  background:
+    radial-gradient(circle at 78% 16%, oklch(98.4% 0.012 89 / 0.18) 0 8rem, transparent 17rem),
+    radial-gradient(circle at 60% 70%, oklch(98.4% 0.012 89 / 0.12) 0 7rem, transparent 15rem),
+    linear-gradient(180deg, oklch(98.4% 0.012 89 / 0.14), oklch(98.4% 0.012 89 / 0.04));
+  backdrop-filter: blur(0.6px);
+}
+
+.spaceh-hero-diagonal-blend {
+  background:
+    linear-gradient(
+      180deg,
+      var(--parchment) 0%,
+      oklch(98.4% 0.012 89 / 0.92) 40%,
+      oklch(98.4% 0.012 89 / 0.44) 58%,
+      transparent 72%
+    );
+}
+
+@media (min-width: 640px) {
+  .spaceh-hero-title {
+    font-size: clamp(3.85rem, 7.6vw, 4.35rem);
+    line-height: 1.02;
+  }
+}
+
+@media (min-width: 1024px) {
+  .spaceh-hero-title {
+    font-size: clamp(3.6rem, 5.6vw, 5.15rem);
+    line-height: 1.03;
+  }
+
+  .spaceh-hero-media {
+    clip-path: polygon(34% 0, 100% 0, 100% 100%, 0 100%);
+  }
+
+  .spaceh-hero-diagonal-blend {
+    background:
+      linear-gradient(
+        108deg,
+        var(--parchment) 0%,
+        var(--parchment) 43%,
+        oklch(98.4% 0.012 89 / 0.96) 48%,
+        oklch(98.4% 0.012 89 / 0.54) 56%,
+        oklch(98.4% 0.012 89 / 0.18) 62%,
+        transparent 70%
+      );
+  }
+}
+
+@keyframes spaceh-hero-dissolve {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  6.25%,
+  25% {
+    opacity: 1;
+  }
+  31.25% {
+    opacity: 0;
+  }
+}
+
+@keyframes spaceh-hero-pan {
+  0% {
+    transform: scale(1.06) translate3d(-1.5%, -1%, 0);
+  }
+  50% {
+    transform: scale(1.12) translate3d(1.25%, 0.8%, 0);
+  }
+  100% {
+    transform: scale(1.16) translate3d(-0.5%, 1.2%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spaceh-hero-slide {
+    animation: none;
+  }
+
+  .spaceh-hero-slide:first-child {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
