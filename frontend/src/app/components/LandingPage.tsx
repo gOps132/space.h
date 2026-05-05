@@ -1,18 +1,47 @@
 import { Link } from "react-router";
 import { BookOpen, CheckCircle2, Clock, Eye, HelpCircle, LogIn, MapPin, Search } from "lucide-react";
-import heroLibraryImage from "../../../assets/girl-reading-1.jpg";
+import girlReadingImage from "../../../assets/girl-reading-1.webp";
+import manReadingOneImage from "../../../assets/man-reading-1.webp";
+import manReadingTwoImage from "../../../assets/man-reading-2.webp";
+import manReadingThreeImage from "../../../assets/man-reading-3.webp";
+
+const heroSlides = [
+  girlReadingImage,
+  manReadingOneImage,
+  manReadingTwoImage,
+  manReadingThreeImage,
+];
 
 export default function LandingPage() {
   return (
     <div className="space-y-20 pb-24">
-      <section className="relative overflow-hidden py-16 sm:py-20 lg:min-h-[calc(100dvh-4rem)] lg:py-0">
-        <div className="mx-auto grid min-h-[inherit] w-full max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,0.85fr)] lg:px-8">
-          <div className="max-w-4xl py-8 lg:py-0">
+      <section className="relative isolate min-h-[calc(100dvh-4rem)] overflow-hidden px-4 py-10 sm:px-6 lg:px-8">
+        <div className="spaceh-hero-media absolute inset-x-0 bottom-0 h-[40%] overflow-hidden sm:h-[42%] lg:inset-y-0 lg:left-auto lg:right-0 lg:h-auto lg:w-[60%]" aria-hidden="true">
+          <div className="spaceh-hero-image-pane absolute inset-0">
+            {heroSlides.map((slide, index) => (
+              <img
+                key={slide}
+                src={slide}
+                alt=""
+                loading={index === 0 ? "eager" : "lazy"}
+                decoding="async"
+                className="spaceh-hero-slide absolute inset-0 h-full w-full object-cover"
+                style={{ animationDelay: `${index * 8 - 2}s` }}
+              />
+            ))}
+            <div className="absolute inset-0 bg-parchment/5" />
+            <div className="spaceh-hero-photo-bokeh absolute inset-0" />
+          </div>
+        </div>
+        <div className="spaceh-hero-diagonal-blend absolute inset-0" aria-hidden="true" />
+
+        <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-6rem)] max-w-7xl items-start lg:items-center">
+          <div className="w-full pb-[56dvh] pt-8 sm:pt-12 lg:max-w-[49%] lg:py-16 xl:max-w-[51%]">
             <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-walnut/10 bg-parchment/70 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-walnut/50">
               <BookOpen className="h-4 w-4 text-oxblood" aria-hidden="true" />
               University Library Space System
             </p>
-            <h1 className="mb-8 max-w-5xl text-5xl font-serif leading-[1.05] text-walnut text-balance sm:text-6xl lg:text-7xl">
+            <h1 className="spaceh-hero-title mb-8 max-w-3xl font-serif text-walnut text-balance">
               Find an open library seat. <br />
               <span className="italic text-oxblood">Right now.</span>
             </h1>
@@ -37,23 +66,6 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-
-          <figure className="academic-border premium-shadow relative min-h-[420px] overflow-hidden rounded-lg bg-walnut text-parchment lg:min-h-[560px]" aria-label="Student reading in a quiet library">
-            <img
-              src={heroLibraryImage}
-              alt="Student reading at a library table."
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(45,36,30,0.04)_0%,rgba(45,36,30,0.12)_48%,rgba(45,36,30,0.82)_100%)]" aria-hidden="true" />
-
-            <figcaption className="absolute inset-x-0 bottom-0 p-6">
-              <div className="grid gap-4 border-t border-parchment/25 pt-5 text-sm sm:grid-cols-3">
-                <WorkflowNote icon={Search} title="Find" desc="Browse open spaces before walking floors." />
-                <WorkflowNote icon={Clock} title="Hold" desc="Reserve a seat or room with clear limits." />
-                <WorkflowNote icon={CheckCircle2} title="Release" desc="Check out so the next person can sit." />
-              </div>
-            </figcaption>
-          </figure>
         </div>
       </section>
 
@@ -101,18 +113,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-    </div>
-  );
-}
-
-function WorkflowNote({ icon: Icon, title, desc }: { icon: typeof Search; title: string; desc: string }) {
-  return (
-    <div className="flex gap-3">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-candlelight" strokeWidth={1.75} aria-hidden="true" />
-      <div>
-        <p className="font-semibold text-parchment">{title}</p>
-        <p className="mt-1 text-xs leading-relaxed text-parchment/72">{desc}</p>
-      </div>
     </div>
   );
 }
