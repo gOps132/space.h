@@ -31,11 +31,22 @@ final class DataApi
         ], $rows);
     }
 
-    public function reservations(): array
+    public function reservations(?array $user = null): array
     {
-        $rows = $this->pdo
-            ->query('select id, user_id, resource_id, start_time, end_time, status, created_at from reservation order by start_time desc, id desc')
-            ->fetchAll();
+        $sql = 'select r.id, r.user_id, r.resource_id, r.start_time, r.end_time, r.status, r.created_at
+                from reservation r
+                join app_user u on u.id = r.user_id';
+        $params = [];
+        if ($user !== null && ($user['role'] ?? '') !== 'ADMIN') {
+            $sql .= ' where u.university_id = ?';
+            $params[] = $user['universityId'];
+        }
+        $sql .= ' order by r.start_time desc, r.id desc';
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($params);
+        $rows = $statement->fetchAll();
+        $participants = $this->participantsByReservation();
 
         return array_map(fn (array $row): array => [
             'reservation_id' => 'RES' . str_pad((string) $row['id'], 3, '0', STR_PAD_LEFT),
@@ -45,14 +56,26 @@ final class DataApi
             'end_time' => $row['end_time'],
             'booking_status' => $this->reservationStatus((string) $row['status']),
             'created_at' => $row['created_at'],
+            'co_bookers' => $participants[(int) $row['id']] ?? [],
         ], $rows);
     }
 
-    public function attendanceLogs(): array
+    public function attendanceLogs(?array $user = null): array
     {
-        $rows = $this->pdo
-            ->query('select id, reservation_id, actual_check_in, actual_check_out, session_notes from attendance_log order by id desc')
-            ->fetchAll();
+        $sql = 'select a.id, a.reservation_id, a.actual_check_in, a.actual_check_out, a.session_notes
+                from attendance_log a
+                join reservation r on r.id = a.reservation_id
+                join app_user u on u.id = r.user_id';
+        $params = [];
+        if ($user !== null && ($user['role'] ?? '') !== 'ADMIN') {
+            $sql .= ' where u.university_id = ?';
+            $params[] = $user['universityId'];
+        }
+        $sql .= ' order by a.id desc';
+
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($params);
+        $rows = $statement->fetchAll();
 
         return array_map(fn (array $row): array => [
             'log_id' => 'LOG' . str_pad((string) $row['id'], 3, '0', STR_PAD_LEFT),
@@ -66,7 +89,7 @@ final class DataApi
     public function dashboard(): array
     {
         $resources = $this->resources();
-        $reservations = $this->reservations();
+        $reservations = $this->reservations(['role' => 'ADMIN']);
         $occupied = count(array_filter($resources, fn (array $resource): bool => in_array($resource['current_status'], ['Reserved', 'Occupied'], true)));
         $occupancyRate = count($resources) === 0 ? 0 : round(($occupied / count($resources)) * 100, 1);
 
@@ -101,11 +124,27 @@ final class DataApi
     {
         return match ($value) {
             'PENDING' => 'Pending',
+            'CONFIRMED' => 'Pending',
+            'ACTIVE' => 'Active',
             'COMPLETED' => 'Completed',
             'CANCELLED' => 'Cancelled',
             'NO_SHOW' => 'No-show',
-            default => 'Active',
+            default => 'Pending',
         };
+    }
+
+    private function participantsByReservation(): array
+    {
+        $rows = $this->pdo
+            ->query('select reservation_id, participant_university_id from reservation_participant order by id')
+            ->fetchAll();
+
+        $participants = [];
+        foreach ($rows as $row) {
+            $participants[(int) $row['reservation_id']][] = (string) $row['participant_university_id'];
+        }
+
+        return $participants;
     }
 
     private function peakData(array $reservations): array

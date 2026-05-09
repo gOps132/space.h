@@ -52,18 +52,20 @@ final class Router
             }
 
             if ($method === 'GET' && $path === '/api/reservations') {
-                if ($this->requireRoles(['ADMIN']) === null) {
+                $user = $this->requireRoles(['STUDENT', 'FACULTY', 'ADMIN']);
+                if ($user === null) {
                     return;
                 }
-                Response::json(['reservations' => (new DataApi($this->pdo))->reservations()]);
+                Response::json(['reservations' => (new DataApi($this->pdo))->reservations($user)]);
                 return;
             }
 
             if ($method === 'GET' && $path === '/api/attendance-logs') {
-                if ($this->requireRoles(['ADMIN']) === null) {
+                $user = $this->requireRoles(['STUDENT', 'FACULTY', 'ADMIN']);
+                if ($user === null) {
                     return;
                 }
-                Response::json(['attendanceLogs' => (new DataApi($this->pdo))->attendanceLogs()]);
+                Response::json(['attendanceLogs' => (new DataApi($this->pdo))->attendanceLogs($user)]);
                 return;
             }
 
@@ -72,6 +74,70 @@ final class Router
                     return;
                 }
                 Response::json(['dashboard' => (new DataApi($this->pdo))->dashboard()]);
+                return;
+            }
+
+            if ($method === 'POST' && $path === '/api/reservations') {
+                $user = $this->requireRoles(['STUDENT', 'FACULTY', 'ADMIN']);
+                if ($user === null) {
+                    return;
+                }
+
+                $result = (new ReservationService($this->pdo))->create($user, $this->jsonBody());
+                Response::json($result['body'], $result['status']);
+                return;
+            }
+
+            if ($method === 'POST' && preg_match('#^/api/reservations/(RES\d+|\d+)/cancel$#', $path, $matches)) {
+                $user = $this->requireRoles(['STUDENT', 'FACULTY', 'ADMIN']);
+                if ($user === null) {
+                    return;
+                }
+
+                $result = (new ReservationService($this->pdo))->cancel($user, $matches[1]);
+                Response::json($result['body'], $result['status']);
+                return;
+            }
+
+            if ($method === 'POST' && preg_match('#^/api/reservations/(RES\d+|\d+)/check-in$#', $path, $matches)) {
+                $user = $this->requireRoles(['STUDENT', 'FACULTY', 'ADMIN']);
+                if ($user === null) {
+                    return;
+                }
+
+                $result = (new ReservationService($this->pdo))->checkIn($user, $matches[1]);
+                Response::json($result['body'], $result['status']);
+                return;
+            }
+
+            if ($method === 'POST' && preg_match('#^/api/reservations/(RES\d+|\d+)/check-out$#', $path, $matches)) {
+                $user = $this->requireRoles(['STUDENT', 'FACULTY', 'ADMIN']);
+                if ($user === null) {
+                    return;
+                }
+
+                $result = (new ReservationService($this->pdo))->checkOut($user, $matches[1]);
+                Response::json($result['body'], $result['status']);
+                return;
+            }
+
+            if ($method === 'POST' && $path === '/api/resources') {
+                if ($this->requireRoles(['ADMIN']) === null) {
+                    return;
+                }
+
+                $result = (new ResourceService($this->pdo))->create($this->jsonBody());
+                Response::json($result['body'], $result['status']);
+                return;
+            }
+
+            if ($method === 'PATCH' && preg_match('#^/api/resources/(SR\d+|\d+)/status$#', $path, $matches)) {
+                if ($this->requireRoles(['ADMIN']) === null) {
+                    return;
+                }
+
+                $result = (new ResourceService($this->pdo))->updateStatus($matches[1], $this->jsonBody());
+                Response::json($result['body'], $result['status']);
                 return;
             }
 
@@ -108,6 +174,12 @@ final class Router
     private function authorizationHeader(): ?string
     {
         return $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null;
+    }
+
+    private function jsonBody(): array
+    {
+        $body = json_decode(file_get_contents('php://input') ?: '{}', true);
+        return is_array($body) ? $body : [];
     }
 
 }

@@ -10,11 +10,13 @@ export const TOKEN_KEY = "spaceh.authToken";
 export const USER_KEY = "spaceh.currentUser";
 
 export interface CurrentUser {
+  userId: string;
   universityId: string;
   fullName: string;
   email: string;
   role: "STUDENT" | "FACULTY" | "ADMIN" | "GUEST";
   accountStatus: "ACTIVE" | "SUSPENDED" | "INACTIVE";
+  bannedUntil?: string | null;
 }
 
 export interface LoginResponse {
@@ -93,6 +95,55 @@ export async function getAttendanceLogs(): Promise<AttendanceLogTransaction[]> {
 export async function getDashboard(): Promise<OrganizationDashboard> {
   const payload = await request<{ dashboard: OrganizationDashboard }>("/api/dashboard", { auth: true });
   return payload.dashboard;
+}
+
+export async function createReservation(input: {
+  resourceId: string;
+  startTime: string;
+  endTime: string;
+  coBookers?: string[];
+}) {
+  return request<{ message: string; reservationId: string }>("/api/reservations", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(input),
+  });
+}
+
+export async function cancelReservation(reservationId: string) {
+  return request<{ message: string }>(`/api/reservations/${reservationId}/cancel`, { method: "POST", auth: true });
+}
+
+export async function checkInReservation(reservationId: string) {
+  return request<{ message: string }>(`/api/reservations/${reservationId}/check-in`, { method: "POST", auth: true });
+}
+
+export async function checkOutReservation(reservationId: string) {
+  return request<{ message: string }>(`/api/reservations/${reservationId}/check-out`, { method: "POST", auth: true });
+}
+
+export async function updateResourceStatus(resourceId: string, status: StudyResource["current_status"]) {
+  return request<{ message: string }>(`/api/resources/${resourceId}/status`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function createResource(input: {
+  resourceName: string;
+  resourceType: StudyResource["resource_type"];
+  zoneLocation: string;
+  floor: number;
+  hasPowerOutlet?: boolean;
+  capacity?: number;
+  isFacultyExclusive?: boolean;
+}) {
+  return request<{ message: string; resourceId: string }>("/api/resources", {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(input),
+  });
 }
 
 async function request<T>(path: string, options: RequestInit & { auth?: boolean } = {}): Promise<T> {

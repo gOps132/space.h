@@ -30,7 +30,7 @@ final class SeedData
 
         $resources = [
             ['Floor 1 - Desk 04', 'INDIVIDUAL_SEAT', 'Commons', 1, 'AVAILABLE', 1, null, 0],
-            ['Floor 2 - Desk 42', 'INDIVIDUAL_SEAT', 'Silent Zone', 2, 'AVAILABLE', 1, null, 0],
+            ['Floor 2 - Desk 42', 'INDIVIDUAL_SEAT', 'Silent Zone', 2, 'RESERVED', 1, null, 0],
             ['Consultation Room A', 'CONSULTATION_ROOM', 'Faculty Wing', 3, 'AVAILABLE', 1, 6, 1],
             ['Study Room 3B', 'GROUP_ROOM', 'Collaborative Zone', 3, 'OCCUPIED', 1, 8, 0],
         ];
@@ -44,7 +44,7 @@ final class SeedData
 
         $pdo->exec(
             "insert into reservation (user_id, resource_id, start_time, end_time, status)
-             select u.id, r.id, '2026-05-09 09:00:00', '2026-05-09 11:00:00', 'CONFIRMED'
+             select u.id, r.id, '2026-05-09 09:00:00', '2026-05-09 11:00:00', 'PENDING'
              from app_user u, study_resource r
              where u.university_id = '24-0001-01' and r.resource_name = 'Floor 2 - Desk 42'"
         );

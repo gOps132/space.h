@@ -1,28 +1,55 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { BookOpen, Calendar, ChevronDown, Clock, Info, MapPin, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   enhancedReservations,
   enhancedResources,
-  enhancedUsers,
   type ReservationTransaction,
   type StudyResource,
 } from "../data/enhancedMockData";
+import {
+  ApiError,
+  createReservation,
+  currentUser as fetchCurrentUser,
+  getReservations,
+  getResources,
+  type CurrentUser,
+} from "../api/client";
 
 export default function FacultyDashboard() {
-  const currentUser = enhancedUsers.find((user) => user.role === "Faculty") ?? enhancedUsers[2];
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [resources, setResources] = useState<StudyResource[]>(enhancedResources);
   const [reservations, setReservations] = useState<ReservationTransaction[]>(enhancedReservations);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [purpose, setPurpose] = useState("");
 
-  const groupRooms = resources.filter((resource) => resource.resource_type === "Group Study Room");
-  const facultyReservations = reservations.filter((reservation) => reservation.user_id === currentUser.user_id);
+  const refresh = async () => {
+    const [user, nextResources, nextReservations] = await Promise.all([
+      fetchCurrentUser(),
+      getResources(),
+      getReservations(),
+    ]);
+    setCurrentUser(user);
+    setResources(nextResources.length > 0 ? nextResources : enhancedResources);
+    setReservations(nextReservations);
+  };
 
-  const handleBookRoom = (roomId = selectedRoom) => {
+  useEffect(() => {
+    refresh()
+      .catch(() => {
+        toast.error("Live faculty room data unavailable. Showing local fallback.");
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const groupRooms = resources.filter((resource) => resource.resource_type === "Group Study Room");
+  const facultyReservations = reservations.filter((reservation) => reservation.user_id === currentUser?.userId);
+
+  const handleBookRoom = async (roomId = selectedRoom) => {
     if (!roomId || !startTime || !endTime) {
       toast.error("Choose a room plus start and end times.");
       return;
@@ -55,24 +82,26 @@ export default function FacultyDashboard() {
       return;
     }
 
-    const newReservation: ReservationTransaction = {
-      reservation_id: `RES${String(reservations.length + 1).padStart(3, "0")}`,
-      user_id: currentUser.user_id,
-      resource_id: roomId,
-      start_time: start.toISOString(),
-      end_time: end.toISOString(),
-      booking_status: "Pending",
-      created_at: new Date().toISOString(),
-    };
-
-    setReservations((current) => [...current, newReservation]);
-    setResources((current) => current.map((resource) => (resource.resource_id === roomId ? { ...resource, current_status: "Reserved" } : resource)));
-    setSelectedRoom("");
-    setStartTime("");
-    setEndTime("");
-    setPurpose("");
-    toast.success(purpose ? `Room reserved for ${purpose}.` : "Meeting room reserved successfully.");
+    try {
+      await createReservation({
+        resourceId: roomId,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+      });
+      await refresh();
+      setSelectedRoom("");
+      setStartTime("");
+      setEndTime("");
+      setPurpose("");
+      toast.success(purpose ? `Room reserved for ${purpose}.` : "Meeting room reserved successfully.");
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : "Room reservation failed.");
+    }
   };
+
+  if (isLoading || currentUser === null) {
+    return <div className="mx-auto max-w-7xl px-4 py-12 text-sm italic text-walnut/50 sm:px-6 lg:px-8">Loading live faculty portal...</div>;
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-4 py-12 sm:px-6 lg:px-8">
@@ -83,7 +112,7 @@ export default function FacultyDashboard() {
         </div>
         <div className="academic-border flex items-center gap-2 rounded-full bg-parchment px-6 py-3">
           <BookOpen className="h-4 w-4 text-oxblood" aria-hidden="true" />
-          <span className="text-sm font-medium">Credentialed as {currentUser.full_name}</span>
+          <span className="text-sm font-medium">Credentialed as {currentUser.fullName}</span>
         </div>
       </div>
 

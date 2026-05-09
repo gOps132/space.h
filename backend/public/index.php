@@ -14,7 +14,7 @@ if ($origin === \Spaceh\Config::allowedOrigin()) {
 }
 
 header('Access-Control-Allow-Headers: Authorization, Content-Type');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PATCH, OPTIONS');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     http_response_code(204);
