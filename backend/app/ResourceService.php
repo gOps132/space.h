@@ -32,14 +32,19 @@ final class ResourceService
         $zone = trim((string) ($body['zoneLocation'] ?? ''));
         $floor = (int) ($body['floor'] ?? 0);
         $capacity = isset($body['capacity']) && $body['capacity'] !== '' ? (int) $body['capacity'] : null;
+        $minParticipants = self::minParticipants($body, $type);
 
         if ($name === '' || $type === null || $zone === '' || $floor < 1) {
             return self::error('Resource name, type, zone, and floor are required.', 400);
         }
 
+        if ($minParticipants === null) {
+            return self::error('Minimum participants must be a positive whole number.', 400);
+        }
+
         $statement = $this->pdo->prepare(
-            'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, faculty_exclusive)
-             values (?, ?, ?, ?, ?, ?, ?, ?)'
+            'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive)
+             values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $statement->execute([
             $name,
@@ -49,6 +54,7 @@ final class ResourceService
             'AVAILABLE',
             !empty($body['hasPowerOutlet']) ? 1 : 0,
             $capacity,
+            $minParticipants,
             !empty($body['isFacultyExclusive']) ? 1 : 0,
         ]);
 
@@ -82,9 +88,93 @@ final class ResourceService
         return ['status' => 200, 'body' => ['message' => 'Resource status updated.']];
     }
 
+    public function update(string $resourceDisplayId, array $body): array
+    {
+        $id = self::numericId($resourceDisplayId, 'SR');
+        if ($id === null) {
+            return self::error('Valid resource ID is required.', 400);
+        }
+
+        $name = trim((string) ($body['resourceName'] ?? ''));
+        $type = self::TYPES[(string) ($body['resourceType'] ?? '')] ?? null;
+        $zone = trim((string) ($body['zoneLocation'] ?? ''));
+        $floor = (int) ($body['floor'] ?? 0);
+        $capacity = isset($body['capacity']) && $body['capacity'] !== '' ? (int) $body['capacity'] : null;
+        $minParticipants = self::minParticipants($body, $type);
+
+        if ($name === '' || $type === null || $zone === '' || $floor < 1) {
+            return self::error('Resource name, type, zone, and floor are required.', 400);
+        }
+
+        if ($minParticipants === null) {
+            return self::error('Minimum participants must be a positive whole number.', 400);
+        }
+
+        $exists = $this->pdo->prepare('select count(*) from study_resource where id = ?');
+        $exists->execute([$id]);
+        if ((int) $exists->fetchColumn() === 0) {
+            return self::error('Resource not found.', 404);
+        }
+
+        $statement = $this->pdo->prepare(
+            'update study_resource
+             set resource_name = ?, resource_type = ?, zone_location = ?, floor = ?, has_power_outlet = ?, capacity = ?, min_participants = ?, faculty_exclusive = ?
+             where id = ?'
+        );
+        $statement->execute([
+            $name,
+            $type,
+            $zone,
+            $floor,
+            !empty($body['hasPowerOutlet']) ? 1 : 0,
+            $capacity,
+            $minParticipants,
+            !empty($body['isFacultyExclusive']) ? 1 : 0,
+            $id,
+        ]);
+
+        return ['status' => 200, 'body' => ['message' => 'Resource updated.']];
+    }
+
+    public function delete(string $resourceDisplayId): array
+    {
+        $id = self::numericId($resourceDisplayId, 'SR');
+        if ($id === null) {
+            return self::error('Valid resource ID is required.', 400);
+        }
+
+        $reservations = $this->pdo->prepare('select count(*) from reservation where resource_id = ?');
+        $reservations->execute([$id]);
+        if ((int) $reservations->fetchColumn() > 0) {
+            return self::error('Resource has reservations and cannot be deleted.', 409);
+        }
+
+        $statement = $this->pdo->prepare('delete from study_resource where id = ?');
+        $statement->execute([$id]);
+        if ($statement->rowCount() === 0) {
+            return self::error('Resource not found.', 404);
+        }
+
+        return ['status' => 200, 'body' => ['message' => 'Resource deleted.']];
+    }
+
     private static function error(string $message, int $status): array
     {
         return ['status' => $status, 'body' => ['message' => $message]];
+    }
+
+    private static function minParticipants(array $body, ?string $type): ?int
+    {
+        if (isset($body['minParticipants']) && $body['minParticipants'] !== '') {
+            $minParticipants = filter_var($body['minParticipants'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($minParticipants === false) {
+                return null;
+            }
+
+            return $minParticipants > 0 ? $minParticipants : null;
+        }
+
+        return $type === 'GROUP_ROOM' ? 3 : 1;
     }
 
     private static function numericId(string $value, string $prefix): ?int

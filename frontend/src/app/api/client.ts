@@ -137,12 +137,37 @@ export async function createResource(input: {
   floor: number;
   hasPowerOutlet?: boolean;
   capacity?: number;
+  minParticipants?: number;
   isFacultyExclusive?: boolean;
 }) {
   return request<{ message: string; resourceId: string }>("/api/resources", {
     method: "POST",
     auth: true,
     body: JSON.stringify(input),
+  });
+}
+
+export async function updateResource(resourceId: string, input: {
+  resourceName: string;
+  resourceType: StudyResource["resource_type"];
+  zoneLocation: string;
+  floor: number;
+  hasPowerOutlet?: boolean;
+  capacity?: number;
+  minParticipants?: number;
+  isFacultyExclusive?: boolean;
+}) {
+  return request<{ message: string }>(`/api/resources/${resourceId}`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteResource(resourceId: string) {
+  return request<{ message: string }>(`/api/resources/${resourceId}`, {
+    method: "DELETE",
+    auth: true,
   });
 }
 

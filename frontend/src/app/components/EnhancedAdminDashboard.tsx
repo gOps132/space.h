@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
-import { AlertCircle, BarChart3, ChevronDown, Download, MoreVertical, Plus, Search, Settings, Users, Wrench } from "lucide-react";
+import type { FormEvent, ReactNode } from "react";
+import { AlertCircle, BarChart3, ChevronDown, Download, MoreVertical, Pencil, Plus, Search, Settings, Trash2, Users, Wrench } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import {
   dashboardData,
   enhancedAttendanceLogs,
@@ -17,12 +19,36 @@ import {
   ApiError,
   clearSession,
   createResource,
+  deleteResource,
   getAttendanceLogs,
   getDashboard,
   getReservations,
   getResources,
+  updateResource,
   updateResourceStatus,
 } from "../api/client";
+
+type ResourceFormState = {
+  resourceName: string;
+  resourceType: StudyResource["resource_type"];
+  zoneLocation: string;
+  floor: string;
+  capacity: string;
+  minParticipants: string;
+  hasPowerOutlet: boolean;
+  isFacultyExclusive: boolean;
+};
+
+const emptyResourceForm: ResourceFormState = {
+  resourceName: "",
+  resourceType: "Individual Seat",
+  zoneLocation: "",
+  floor: "1",
+  capacity: "",
+  minParticipants: "1",
+  hasPowerOutlet: false,
+  isFacultyExclusive: false,
+};
 
 export default function EnhancedAdminDashboard() {
   const [resources, setResources] = useState<StudyResource[]>(enhancedResources);
@@ -31,6 +57,12 @@ export default function EnhancedAdminDashboard() {
   const [dashboard, setDashboard] = useState<OrganizationDashboard>(dashboardData);
   const [syncState, setSyncState] = useState<"live" | "fallback">("fallback");
   const [query, setQuery] = useState("");
+  const [isResourceDialogOpen, setIsResourceDialogOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState<StudyResource | null>(null);
+  const [deletingResource, setDeletingResource] = useState<StudyResource | null>(null);
+  const [resourceForm, setResourceForm] = useState<ResourceFormState>(emptyResourceForm);
+  const [isCreatingResource, setIsCreatingResource] = useState(false);
+  const [isDeletingResource, setIsDeletingResource] = useState(false);
 
   const refresh = async () => {
     const [nextResources, nextReservations, nextAttendanceLogs, nextDashboard] = await Promise.all([
@@ -92,20 +124,93 @@ export default function EnhancedAdminDashboard() {
     }
   };
 
-  const addSampleResource = async () => {
-    const nextNumber = resources.length + 1;
+  const updateResourceForm = <Key extends keyof ResourceFormState>(key: Key, value: ResourceFormState[Key]) => {
+    setResourceForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const openCreateResource = () => {
+    setEditingResource(null);
+    setResourceForm(emptyResourceForm);
+    setIsResourceDialogOpen(true);
+  };
+
+  const openEditResource = (resource: StudyResource) => {
+    setEditingResource(resource);
+    setResourceForm(resourceToForm(resource));
+    setIsResourceDialogOpen(true);
+  };
+
+  const handleResourceDialogChange = (open: boolean) => {
+    setIsResourceDialogOpen(open);
+    if (!open) {
+      setEditingResource(null);
+      setResourceForm(emptyResourceForm);
+      setIsCreatingResource(false);
+    }
+  };
+
+  const submitResource = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const floor = Number(resourceForm.floor);
+    const capacity = resourceForm.capacity === "" ? undefined : Number(resourceForm.capacity);
+    const minParticipants = Number(resourceForm.minParticipants);
+
+    if (!resourceForm.resourceName.trim() || !resourceForm.zoneLocation.trim() || !Number.isInteger(floor) || floor < 1) {
+      toast.error("Resource name, zone, and floor are required.");
+      return;
+    }
+
+    if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1)) {
+      toast.error("Capacity must be a positive whole number.");
+      return;
+    }
+
+    if (!Number.isInteger(minParticipants) || minParticipants < 1) {
+      toast.error("Minimum participants must be a positive whole number.");
+      return;
+    }
+
+    setIsCreatingResource(true);
     try {
-      await createResource({
-        resourceName: `Floor 2 - Desk ${nextNumber}`,
-        resourceType: "Individual Seat",
-        zoneLocation: "Collaborative Zone",
-        floor: 2,
-        hasPowerOutlet: true,
-      });
+      const payload = {
+        resourceName: resourceForm.resourceName.trim(),
+        resourceType: resourceForm.resourceType,
+        zoneLocation: resourceForm.zoneLocation.trim(),
+        floor,
+        capacity,
+        minParticipants,
+        hasPowerOutlet: resourceForm.hasPowerOutlet,
+        isFacultyExclusive: resourceForm.isFacultyExclusive,
+      };
+
+      if (editingResource) {
+        await updateResource(editingResource.resource_id, payload);
+      } else {
+        await createResource(payload);
+      }
+
       await refresh();
-      toast.success("Resource added.");
+      handleResourceDialogChange(false);
+      toast.success(editingResource ? "Resource updated." : "Resource added.");
     } catch (caught) {
-      toast.error(caught instanceof ApiError ? caught.message : "Resource creation failed.");
+      toast.error(caught instanceof ApiError ? caught.message : "Resource save failed.");
+      setIsCreatingResource(false);
+    }
+  };
+
+  const confirmDeleteResource = async () => {
+    if (!deletingResource) return;
+
+    setIsDeletingResource(true);
+    try {
+      await deleteResource(deletingResource.resource_id);
+      await refresh();
+      toast.success("Resource deleted.");
+      setDeletingResource(null);
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : "Resource delete failed.");
+    } finally {
+      setIsDeletingResource(false);
     }
   };
 
@@ -133,7 +238,7 @@ export default function EnhancedAdminDashboard() {
             <Download className="h-4 w-4" aria-hidden="true" />
             Export Data
           </button>
-          <button type="button" onClick={addSampleResource} className="flex items-center gap-2 rounded-xl bg-oxblood px-6 py-3 text-sm font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
+          <button type="button" onClick={openCreateResource} className="flex items-center gap-2 rounded-xl bg-oxblood px-6 py-3 text-sm font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
             <Plus className="h-4 w-4" aria-hidden="true" />
             Add Resource
           </button>
@@ -219,6 +324,7 @@ export default function EnhancedAdminDashboard() {
                 <TableHead>Res. ID</TableHead>
                 <TableHead>Space Name</TableHead>
                 <TableHead>Classification</TableHead>
+                <TableHead>Booking Rule</TableHead>
                 <TableHead>Floor / Zone</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead align="right">Actions</TableHead>
@@ -234,6 +340,10 @@ export default function EnhancedAdminDashboard() {
                       {resource.resource_type}
                     </span>
                   </td>
+                  <td className="p-6 text-sm text-walnut/60">
+                    <span className="font-mono tabular-nums">{resource.min_participants ?? 1}</span> min
+                    {resource.is_faculty_exclusive && <span className="ml-2 rounded bg-oxblood/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-oxblood">Faculty</span>}
+                  </td>
                   <td className="space-y-1 p-6">
                     <p className="text-sm font-medium text-walnut">Level {resource.floor}</p>
                     <p className="text-xs text-walnut/40">{resource.zone_location}</p>
@@ -242,9 +352,23 @@ export default function EnhancedAdminDashboard() {
                     <StatusSelect value={resource.current_status} onChange={(status) => updateStatus(resource.resource_id, status)} />
                   </td>
                   <td className="p-6 text-right">
-                    <button type="button" aria-label={`Open actions for ${resource.resource_name}`} className="rounded-lg p-2 text-walnut/35 transition-colors hover:bg-oxblood/5 hover:text-oxblood focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20">
-                      <MoreVertical className="h-5 w-5" aria-hidden="true" />
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" aria-label={`Open actions for ${resource.resource_name}`} className="rounded-lg p-2 text-walnut/35 transition-colors hover:bg-oxblood/5 hover:text-oxblood focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20">
+                          <MoreVertical className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="border-walnut/10 bg-parchment text-walnut">
+                        <DropdownMenuItem onSelect={() => openEditResource(resource)} className="cursor-pointer focus:bg-walnut/5">
+                          <Pencil className="h-4 w-4 text-walnut/50" aria-hidden="true" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setDeletingResource(resource)} variant="destructive" className="cursor-pointer focus:bg-oxblood/10">
+                          <Trash2 className="h-4 w-4 text-oxblood" aria-hidden="true" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </td>
                 </tr>
               ))}
@@ -257,8 +381,37 @@ export default function EnhancedAdminDashboard() {
           <BarChart3 className="h-4 w-4" aria-hidden="true" />
         </div>
       </section>
+
+      <AddResourceDialog
+        editingResource={editingResource}
+        form={resourceForm}
+        isCreating={isCreatingResource}
+        open={isResourceDialogOpen}
+        onOpenChange={handleResourceDialogChange}
+        onSubmit={submitResource}
+        onUpdate={updateResourceForm}
+      />
+      <DeleteResourceDialog
+        isDeleting={isDeletingResource}
+        resource={deletingResource}
+        onCancel={() => setDeletingResource(null)}
+        onConfirm={confirmDeleteResource}
+      />
     </div>
   );
+}
+
+function resourceToForm(resource: StudyResource): ResourceFormState {
+  return {
+    resourceName: resource.resource_name,
+    resourceType: resource.resource_type,
+    zoneLocation: resource.zone_location,
+    floor: String(resource.floor),
+    capacity: resource.capacity ? String(resource.capacity) : "",
+    minParticipants: String(resource.min_participants ?? 1),
+    hasPowerOutlet: Boolean(resource.has_power_outlet),
+    isFacultyExclusive: Boolean(resource.is_faculty_exclusive),
+  };
 }
 
 function AdminStatCard({ label, value, delta, icon: Icon, warning = false }: { label: string; value: string | number; delta: string; icon: typeof Settings; warning?: boolean }) {
@@ -296,5 +449,264 @@ function StatusSelect({ value, onChange }: { value: StudyResource["current_statu
       </select>
       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-walnut/40" aria-hidden="true" />
     </div>
+  );
+}
+
+function AddResourceDialog({
+  editingResource,
+  form,
+  isCreating,
+  open,
+  onOpenChange,
+  onSubmit,
+  onUpdate,
+}: {
+  editingResource: StudyResource | null;
+  form: ResourceFormState;
+  isCreating: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onUpdate: <Key extends keyof ResourceFormState>(key: Key, value: ResourceFormState[Key]) => void;
+}) {
+  const roomLike = form.resourceType !== "Individual Seat";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto border-walnut/15 bg-parchment p-0 text-walnut sm:max-w-2xl">
+        <form onSubmit={onSubmit}>
+          <DialogHeader className="border-b border-walnut/10 px-6 py-5 text-left">
+            <DialogTitle className="font-serif text-2xl text-walnut">{editingResource ? "Edit Library Resource" : "Add Library Resource"}</DialogTitle>
+            <DialogDescription className="text-sm text-walnut/60">
+              {editingResource ? "Update the inventory item details staff use for booking and operations." : "Create an inventory item with the exact location and booking attributes staff expect to manage."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-5 px-6 py-6 sm:grid-cols-2">
+            <ResourceTextField
+              id="resource-name"
+              label="Resource Name"
+              placeholder="Floor 2 - Desk 14"
+              value={form.resourceName}
+              onChange={(value) => onUpdate("resourceName", value)}
+              required
+            />
+
+            <ResourceSelectField
+              id="resource-type"
+              label="Classification"
+              value={form.resourceType}
+              onChange={(value) => {
+                const nextType = value as StudyResource["resource_type"];
+                onUpdate("resourceType", nextType);
+                onUpdate("minParticipants", nextType === "Group Study Room" ? "3" : "1");
+              }}
+            >
+              <option value="Individual Seat">Individual Seat</option>
+              <option value="Group Study Room">Group Study Room</option>
+              <option value="Consultation Room">Consultation Room</option>
+            </ResourceSelectField>
+
+            <ResourceTextField
+              id="zone-location"
+              label="Zone / Location"
+              placeholder="Silent Zone"
+              value={form.zoneLocation}
+              onChange={(value) => onUpdate("zoneLocation", value)}
+              required
+            />
+
+            <ResourceTextField
+              id="resource-floor"
+              label="Floor"
+              min="1"
+              type="number"
+              value={form.floor}
+              onChange={(value) => onUpdate("floor", value)}
+              required
+            />
+
+            <ResourceTextField
+              id="resource-capacity"
+              label="Capacity"
+              min="1"
+              placeholder={roomLike ? "6" : "Optional"}
+              type="number"
+              value={form.capacity}
+              onChange={(value) => onUpdate("capacity", value)}
+            />
+
+            <ResourceTextField
+              id="minimum-participants"
+              label="Minimum Students"
+              min="1"
+              placeholder={roomLike ? "3" : "1"}
+              type="number"
+              value={form.minParticipants}
+              onChange={(value) => onUpdate("minParticipants", value)}
+              required
+            />
+
+            <div className="flex flex-col justify-end gap-3 rounded-xl border border-walnut/10 bg-walnut/[0.03] p-4">
+              <ToggleField
+                checked={form.hasPowerOutlet}
+                label="Power outlet"
+                onChange={(checked) => onUpdate("hasPowerOutlet", checked)}
+              />
+              <ToggleField
+                checked={form.isFacultyExclusive}
+                label="Faculty-exclusive"
+                onChange={(checked) => onUpdate("isFacultyExclusive", checked)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="border-t border-walnut/10 bg-walnut/[0.03] px-6 py-5">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="rounded-xl border border-walnut/15 px-5 py-3 text-sm font-medium text-walnut transition-colors hover:bg-walnut/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+              disabled={isCreating}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-xl bg-oxblood px-5 py-3 text-sm font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25 disabled:cursor-not-allowed disabled:bg-walnut/20 disabled:text-walnut/45"
+              disabled={isCreating}
+            >
+              {isCreating ? "Saving Resource..." : editingResource ? "Save Changes" : "Add Resource"}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteResourceDialog({
+  isDeleting,
+  onCancel,
+  onConfirm,
+  resource,
+}: {
+  isDeleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  resource: StudyResource | null;
+}) {
+  return (
+    <Dialog open={Boolean(resource)} onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent className="border-walnut/15 bg-parchment text-walnut sm:max-w-md">
+        <DialogHeader className="text-left">
+          <DialogTitle className="font-serif text-2xl text-walnut">Delete Resource</DialogTitle>
+          <DialogDescription className="text-sm leading-relaxed text-walnut/60">
+            {resource ? `Delete ${resource.resource_name}? Resources with reservations are protected and will be refused by the backend.` : "Delete this resource?"}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl border border-walnut/15 px-5 py-3 text-sm font-medium text-walnut transition-colors hover:bg-walnut/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+            disabled={isDeleting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="rounded-xl bg-oxblood px-5 py-3 text-sm font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25 disabled:cursor-not-allowed disabled:bg-walnut/20 disabled:text-walnut/45"
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting..." : "Delete Resource"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ResourceTextField({
+  id,
+  label,
+  onChange,
+  value,
+  min,
+  placeholder,
+  required = false,
+  type = "text",
+}: {
+  id: string;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+  min?: string;
+  placeholder?: string;
+  required?: boolean;
+  type?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="px-1 text-[10px] font-semibold uppercase tracking-widest text-walnut/40">{label}</label>
+      <input
+        id={id}
+        min={min}
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        required={required}
+        onChange={(event) => onChange(event.target.value)}
+        className="academic-border w-full rounded-xl bg-parchment px-4 py-3 text-sm text-walnut placeholder:text-walnut/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+      />
+    </div>
+  );
+}
+
+function ResourceSelectField({
+  children,
+  id,
+  label,
+  onChange,
+  value,
+}: {
+  children: ReactNode;
+  id: string;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="px-1 text-[10px] font-semibold uppercase tracking-widest text-walnut/40">{label}</label>
+      <div className="relative">
+        <select
+          id={id}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="academic-border w-full appearance-none rounded-xl bg-parchment py-3 pl-4 pr-10 text-sm font-medium text-walnut focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+        >
+          {children}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-walnut/40" aria-hidden="true" />
+      </div>
+    </div>
+  );
+}
+
+function ToggleField({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
+  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+  return (
+    <label htmlFor={id} className="flex items-center justify-between gap-4 text-sm font-medium text-walnut">
+      <span>{label}</span>
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-5 w-5 rounded border-walnut/20 accent-oxblood focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+      />
+    </label>
   );
 }

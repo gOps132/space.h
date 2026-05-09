@@ -131,12 +131,32 @@ final class Router
                 return;
             }
 
+            if ($method === 'PATCH' && preg_match('#^/api/resources/(SR\d+|\d+)$#', $path, $matches)) {
+                if ($this->requireRoles(['ADMIN']) === null) {
+                    return;
+                }
+
+                $result = (new ResourceService($this->pdo))->update($matches[1], $this->jsonBody());
+                Response::json($result['body'], $result['status']);
+                return;
+            }
+
             if ($method === 'PATCH' && preg_match('#^/api/resources/(SR\d+|\d+)/status$#', $path, $matches)) {
                 if ($this->requireRoles(['ADMIN']) === null) {
                     return;
                 }
 
                 $result = (new ResourceService($this->pdo))->updateStatus($matches[1], $this->jsonBody());
+                Response::json($result['body'], $result['status']);
+                return;
+            }
+
+            if ($method === 'DELETE' && preg_match('#^/api/resources/(SR\d+|\d+)$#', $path, $matches)) {
+                if ($this->requireRoles(['ADMIN']) === null) {
+                    return;
+                }
+
+                $result = (new ResourceService($this->pdo))->delete($matches[1]);
                 Response::json($result['body'], $result['status']);
                 return;
             }
