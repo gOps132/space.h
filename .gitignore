@@ -46,6 +46,8 @@ DESIGN.md
 .agents/context/DESIGN.md
 docs/PRODUCT.md
 docs/DESIGN.md
+docs/superpowers/plans/
+docs/superpowers/specs/
 
 # Local git worktrees
 .worktrees/

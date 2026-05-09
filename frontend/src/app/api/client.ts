@@ -1,0 +1,127 @@
+import type {
+  AttendanceLogTransaction,
+  OrganizationDashboard,
+  ReservationTransaction,
+  StudyResource,
+} from "../data/enhancedMockData";
+
+const API_BASE = (import.meta.env.VITE_SPACEH_API_BASE ?? "http://localhost:8080").replace(/\/$/, "");
+export const TOKEN_KEY = "spaceh.authToken";
+export const USER_KEY = "spaceh.currentUser";
+
+export interface CurrentUser {
+  universityId: string;
+  fullName: string;
+  email: string;
+  role: "STUDENT" | "FACULTY" | "ADMIN" | "GUEST";
+  accountStatus: "ACTIVE" | "SUSPENDED" | "INACTIVE";
+}
+
+export interface LoginResponse {
+  token: string;
+  user: CurrentUser;
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly fieldErrors?: Record<string, string>,
+  ) {
+    super(message);
+  }
+}
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function getStoredUser(): CurrentUser | null {
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as CurrentUser;
+  } catch {
+    return null;
+  }
+}
+
+export function hasStoredSession(): boolean {
+  const user = getStoredUser();
+  return Boolean(getStoredToken() && user?.accountStatus === "ACTIVE");
+}
+
+export function storeSession(session: LoginResponse) {
+  localStorage.setItem(TOKEN_KEY, session.token);
+  localStorage.setItem(USER_KEY, JSON.stringify(session.user));
+}
+
+export function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+export async function login(universityId: string, password: string): Promise<LoginResponse> {
+  const session = await request<LoginResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ universityId, password }),
+  });
+  storeSession(session);
+  return session;
+}
+
+export async function currentUser(): Promise<CurrentUser> {
+  return request<CurrentUser>("/api/auth/me", { auth: true });
+}
+
+export async function getResources(): Promise<StudyResource[]> {
+  const payload = await request<{ resources: StudyResource[] }>("/api/resources");
+  return payload.resources;
+}
+
+export async function getReservations(): Promise<ReservationTransaction[]> {
+  const payload = await request<{ reservations: ReservationTransaction[] }>("/api/reservations", { auth: true });
+  return payload.reservations;
+}
+
+export async function getAttendanceLogs(): Promise<AttendanceLogTransaction[]> {
+  const payload = await request<{ attendanceLogs: AttendanceLogTransaction[] }>("/api/attendance-logs", { auth: true });
+  return payload.attendanceLogs;
+}
+
+export async function getDashboard(): Promise<OrganizationDashboard> {
+  const payload = await request<{ dashboard: OrganizationDashboard }>("/api/dashboard", { auth: true });
+  return payload.dashboard;
+}
+
+async function request<T>(path: string, options: RequestInit & { auth?: boolean } = {}): Promise<T> {
+  const headers = new Headers(options.headers);
+  headers.set("Accept", "application/json");
+
+  if (options.body) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (options.auth) {
+    const token = getStoredToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch {
+    throw new ApiError("Backend is unavailable.", 0);
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearSession();
+    }
+    throw new ApiError(payload.message ?? "Request failed.", response.status, payload.fieldErrors);
+  }
+
+  return payload as T;
+}

@@ -1,13 +1,30 @@
 import { Link } from "react-router";
 import { LogIn, MapPin, Users } from "lucide-react";
-import { enhancedResources, getFloorHeatmap } from "../data/enhancedMockData";
+import { useEffect, useMemo, useState } from "react";
+import { getResources } from "../api/client";
+import { enhancedResources, type StudyResource } from "../data/enhancedMockData";
 
 export default function GuestPage() {
-  const floorData = getFloorHeatmap();
-  const occupied = enhancedResources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved").length;
-  const occupancyPercent = Math.round((occupied / enhancedResources.length) * 100);
-  const availableSeats = enhancedResources.filter((resource) => resource.resource_type === "Individual Seat" && resource.current_status === "Available").length;
-  const availableRooms = enhancedResources.filter((resource) => resource.resource_type === "Group Study Room" && resource.current_status === "Available").length;
+  const [resources, setResources] = useState<StudyResource[]>(enhancedResources);
+  const [syncState, setSyncState] = useState<"live" | "fallback">("fallback");
+
+  useEffect(() => {
+    getResources()
+      .then((nextResources) => {
+        setResources(nextResources.length > 0 ? nextResources : enhancedResources);
+        setSyncState("live");
+      })
+      .catch(() => {
+        setResources(enhancedResources);
+        setSyncState("fallback");
+      });
+  }, []);
+
+  const floorData = useMemo(() => getFloorHeatmap(resources), [resources]);
+  const occupied = resources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved").length;
+  const occupancyPercent = Math.round((occupied / resources.length) * 100);
+  const availableSeats = resources.filter((resource) => resource.resource_type === "Individual Seat" && resource.current_status === "Available").length;
+  const availableRooms = resources.filter((resource) => resource.resource_type === "Group Study Room" && resource.current_status === "Available").length;
 
   return (
     <div className="mx-auto max-w-7xl space-y-16 px-4 py-12 sm:px-6 lg:px-8">
@@ -16,6 +33,9 @@ export default function GuestPage() {
           <h1 className="mb-6 text-5xl font-serif leading-tight text-walnut text-balance">Library Live Occupancy</h1>
           <p className="text-lg italic text-walnut/60">
             Public real-time dashboard. Last synchronized {new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date())}.
+          </p>
+          <p className="mt-3 text-sm text-walnut/45">
+            Source: {syncState === "live" ? "PHP backend" : "local fallback"}
           </p>
         </div>
         <Link
@@ -31,7 +51,7 @@ export default function GuestPage() {
         <section className="academic-border premium-shadow rounded-2xl bg-parchment p-8 lg:col-span-2">
           <h2 className="mb-8 border-b border-walnut/10 pb-4 text-2xl font-serif">Real-Time Space Availability</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {enhancedResources.map((space) => (
+            {resources.map((space) => (
               <div key={space.resource_id} className="rounded-xl border border-walnut/10 bg-walnut/5 p-4 text-center">
                 <p className="mb-2 truncate text-xs font-bold uppercase leading-none tracking-widest text-walnut/40">{space.resource_id}</p>
                 <p className="line-clamp-1 text-xs text-walnut/50">{space.resource_name}</p>
@@ -81,13 +101,26 @@ export default function GuestPage() {
             <h2 className="mb-4 text-lg font-serif">Quick Access</h2>
             <div className="space-y-2 text-sm text-walnut/60">
               <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-oxblood" aria-hidden="true" /> Main Library Center</p>
-              <p className="flex items-center gap-2"><Users className="h-4 w-4 text-oxblood" aria-hidden="true" /> {enhancedResources.length} Tracked Spaces</p>
+              <p className="flex items-center gap-2"><Users className="h-4 w-4 text-oxblood" aria-hidden="true" /> {resources.length} Tracked Spaces</p>
             </div>
           </section>
         </aside>
       </div>
     </div>
   );
+}
+
+function getFloorHeatmap(resources: StudyResource[]) {
+  const floors = Array.from(new Set(resources.map((resource) => resource.floor))).sort((a, b) => a - b);
+  return floors.map((floor) => {
+    const floorResources = resources.filter((resource) => resource.floor === floor);
+    const total = floorResources.length;
+    const occupied = floorResources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved").length;
+    const available = floorResources.filter((resource) => resource.current_status === "Available").length;
+    const occupancyRate = total > 0 ? (occupied / total) * 100 : 0;
+
+    return { floor, total, occupied, available, occupancyRate };
+  });
 }
 
 function StatRow({ label, value }: { label: string; value: string | number }) {

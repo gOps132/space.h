@@ -1,6 +1,6 @@
 # Project Overview
 
-Space.h is a university library reservation platform with a React frontend and a Spring Boot backend.
+Space.h is a university library reservation platform with a React frontend and a plain PHP backend.
 
 ## Core Roles
 
@@ -12,5 +12,5 @@ Space.h is a university library reservation platform with a React frontend and a
 ## Current Direction
 
 - `frontend/` contains the existing UI prototype and will continue to evolve into the production client.
-- `backend/` will become the source of truth for authentication, reservations, attendance, reporting, and analytics.
+- `backend/` is the PHP API and Apache host for the built frontend, with MySQL-backed authentication, reservations, attendance, reporting, and analytics.
 - `docs/` captures decisions, workflows, and the domain model as the project grows.

@@ -1,6 +1,6 @@
-# Initial Domain Model
+# Domain Model
 
-The first schema migration establishes the backend tables that map to the app plan.
+The MySQL schema in `backend/schema/mysql.sql` establishes the backend tables that map to the app plan.
 
 ## Tables
 
@@ -17,9 +17,9 @@ The first schema migration establishes the backend tables that map to the app pl
 - `issue_report`
   - broken desk reports and occupied-but-empty reports
 
-## Why Use Migrations
+## Why Keep Schema In Code
 
-Flyway keeps schema changes versioned and repeatable.
+Committed SQL keeps schema changes versioned and repeatable.
 
 That matters because:
 

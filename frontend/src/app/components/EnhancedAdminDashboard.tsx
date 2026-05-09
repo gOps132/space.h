@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { AlertCircle, BarChart3, ChevronDown, Download, MoreVertical, Plus, Search, Settings, Users, Wrench } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -8,19 +8,51 @@ import {
   enhancedAttendanceLogs,
   enhancedReservations,
   enhancedResources,
+  type AttendanceLogTransaction,
+  type OrganizationDashboard,
+  type ReservationTransaction,
   type StudyResource,
 } from "../data/enhancedMockData";
+import { ApiError, clearSession, getAttendanceLogs, getDashboard, getReservations, getResources } from "../api/client";
 
 export default function EnhancedAdminDashboard() {
   const [resources, setResources] = useState<StudyResource[]>(enhancedResources);
+  const [reservations, setReservations] = useState<ReservationTransaction[]>(enhancedReservations);
+  const [attendanceLogs, setAttendanceLogs] = useState<AttendanceLogTransaction[]>(enhancedAttendanceLogs);
+  const [dashboard, setDashboard] = useState<OrganizationDashboard>(dashboardData);
+  const [syncState, setSyncState] = useState<"live" | "fallback">("fallback");
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    Promise.all([getResources(), getReservations(), getAttendanceLogs(), getDashboard()])
+      .then(([nextResources, nextReservations, nextAttendanceLogs, nextDashboard]) => {
+        setResources(nextResources.length > 0 ? nextResources : enhancedResources);
+        setReservations(nextReservations);
+        setAttendanceLogs(nextAttendanceLogs);
+        setDashboard(nextDashboard);
+        setSyncState("live");
+      })
+      .catch((caught) => {
+        if (caught instanceof ApiError && (caught.status === 401 || caught.status === 403)) {
+          clearSession();
+          window.location.assign("/login?redirect=/admin");
+          return;
+        }
+
+        setResources(enhancedResources);
+        setReservations(enhancedReservations);
+        setAttendanceLogs(enhancedAttendanceLogs);
+        setDashboard(dashboardData);
+        setSyncState("fallback");
+      });
+  }, []);
 
   const metrics = useMemo(() => {
     const occupiedOrReserved = resources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved").length;
     const occupancyRate = resources.length > 0 ? Math.round((occupiedOrReserved / resources.length) * 100) : 0;
     const maintenanceAlerts = resources.filter((resource) => resource.current_status === "Under Maintenance").length;
-    const pendingReservations = enhancedReservations.filter((reservation) => reservation.booking_status === "Pending").length;
-    const noShows = enhancedReservations.filter((reservation) => reservation.booking_status === "No-show").length;
+    const pendingReservations = reservations.filter((reservation) => reservation.booking_status === "Pending").length;
+    const noShows = reservations.filter((reservation) => reservation.booking_status === "No-show").length;
     const zones = Array.from(new Set(resources.map((resource) => resource.zone_location)));
     const zoneData = zones.map((zone) => ({
       name: zone,
@@ -28,7 +60,7 @@ export default function EnhancedAdminDashboard() {
     }));
 
     return { occupancyRate, maintenanceAlerts, pendingReservations, noShows, zoneData };
-  }, [resources]);
+  }, [resources, reservations]);
 
   const filteredResources = resources.filter((resource) => {
     const haystack = `${resource.resource_id} ${resource.resource_name} ${resource.zone_location} ${resource.current_status}`.toLowerCase();
@@ -72,6 +104,7 @@ export default function EnhancedAdminDashboard() {
         <div>
           <h1 className="mb-2 text-4xl font-serif">Operational Command</h1>
           <p className="font-serif text-lg italic leading-none text-walnut/60">University Library Resource Management</p>
+          <p className="mt-3 text-sm text-walnut/45">Source: {syncState === "live" ? "PHP backend" : "local fallback"}</p>
         </div>
         <div className="flex flex-wrap gap-4">
           <button type="button" onClick={exportData} className="flex items-center gap-2 rounded-xl bg-walnut px-6 py-3 text-sm font-medium text-parchment transition-colors hover:bg-walnut/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
@@ -86,7 +119,7 @@ export default function EnhancedAdminDashboard() {
       </div>
 
       <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
-        <AdminStatCard label="Total Spaces" value={resources.length} delta={`${enhancedAttendanceLogs.length} active logs`} icon={Settings} />
+        <AdminStatCard label="Total Spaces" value={resources.length} delta={`${attendanceLogs.length} active logs`} icon={Settings} />
         <AdminStatCard label="Current Occupancy" value={`${metrics.occupancyRate}%`} delta={`${metrics.pendingReservations} pending`} icon={Users} />
         <AdminStatCard label="Maintenance Alerts" value={metrics.maintenanceAlerts} delta="Freeze enabled" icon={Wrench} warning />
         <AdminStatCard label="No-Shows" value={metrics.noShows} delta="Penalty tracked" icon={AlertCircle} warning={metrics.noShows > 0} />
@@ -100,7 +133,7 @@ export default function EnhancedAdminDashboard() {
           </div>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dashboardData.peak_time_data}>
+              <BarChart data={dashboard.peak_time_data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,36,30,0.12)" vertical={false} />
                 <XAxis dataKey="hour" tick={{ fontSize: 12, fill: "#6B5D50" }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 12, fill: "#6B5D50" }} tickLine={false} axisLine={false} />

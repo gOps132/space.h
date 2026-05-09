@@ -1,17 +1,22 @@
-FROM maven:3.9.9-eclipse-temurin-17 AS build
-WORKDIR /workspace
+FROM node:20-alpine AS frontend-build
 
-COPY backend/pom.xml backend/pom.xml
-RUN mvn -f backend/pom.xml -B dependency:go-offline
+WORKDIR /workspace/frontend
 
-COPY backend backend
-RUN mvn -f backend/pom.xml -B clean package
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
 
-FROM eclipse-temurin:17-jre
-WORKDIR /app
+COPY frontend ./
+RUN npm run build
 
-COPY --from=build /workspace/backend/target/backend-0.0.1-SNAPSHOT.jar app.jar
+FROM php:8.3-apache
 
-EXPOSE 8080
+RUN docker-php-ext-install pdo_mysql \
+    && a2enmod rewrite
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+WORKDIR /var/www/html
+
+COPY backend/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY backend /var/www/html
+COPY --from=frontend-build /workspace/frontend/dist /var/www/html/public/app
+
+EXPOSE 80

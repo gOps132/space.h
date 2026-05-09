@@ -32,7 +32,7 @@ jobs:
         run: npm run build
 
   backend:
-    name: Backend Test
+    name: Backend PHP Test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -42,12 +42,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
-          distribution: temurin
-          java-version: 17
-          cache: maven
+          php-version: "8.3"
+          extensions: pdo_mysql
+
+      - name: Lint backend
+        run: find . -name '*.php' -print0 | xargs -0 -n1 php -l
 
       - name: Test backend
-        run: mvn -B test
+        run: php tests/run.php
