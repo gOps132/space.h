@@ -1,93 +1,81 @@
 # Authentication Foundations
 
-This guide explains the first real backend feature slice: authentication.
+This guide explains the PHP authentication slice.
 
-## What We Added
+## What Exists
 
 - `POST /api/auth/login`
 - `GET /api/auth/me`
 - JWT bearer-token authentication
+- role checks for admin-only API routes
 - university ID format validation
-- BCrypt password hashing
-- consistent JSON error responses for validation failures and bad credentials
+- BCrypt password hashing through PHP `password_hash` and `password_verify`
+- consistent JSON errors for validation failures and bad credentials
 
 ## The Moving Parts
 
-### `AuthController`
+### `Router`
 
-The controller is the HTTP entry point.
+`Router` is the HTTP coordinator. It reads the request method and path, then calls the matching service.
 
-It does two main jobs:
+Current auth routes:
 
-- accepts incoming requests
-- delegates real logic to the service layer
-
-In this slice, the controller stays intentionally thin so the business rules live in services.
+- `POST /api/auth/login`
+- `GET /api/auth/me`
 
 ### `AuthService`
 
-The service coordinates the login flow.
+`AuthService` owns credential rules.
 
 It:
 
-- passes credentials into Spring Security's `AuthenticationManager`
-- converts the authenticated user into a token response
-- maps the authenticated principal into the `/me` response
-
-This is a good example of the "controller -> service -> framework infrastructure" flow.
+- validates university ID format
+- loads the user from MySQL by `university_id`
+- verifies the submitted password against the stored hash
+- returns the public user payload
+- asks `JwtService` to issue tokens
+- restores the current user from a bearer token
 
 ### `JwtService`
 
-This class is focused on tokens only.
+`JwtService` creates and verifies HMAC-SHA256 JWTs without external dependencies.
 
 It:
 
-- creates a signed JWT
-- extracts the university ID from a token
-- checks whether the token is still valid for a user
+- signs tokens with `SPACEH_JWT_SECRET`
+- stores the university ID in `sub`
+- adds `iat` and `exp` claims
+- rejects malformed, tampered, or expired tokens
 
-Keeping token logic in one class makes later changes easier, like adding more claims or rotating secrets.
+### `SeedData`
 
-### `JwtAuthenticationFilter`
+`SeedData` creates demo accounts only when `app_user` is empty.
 
-This filter runs on incoming requests before protected controllers.
+Demo credentials:
 
-If it finds a bearer token:
+- `24-0001-01` / `library-pass`
+- `23-1024` / `compiler-pass`
+- `22-7777-03` / `orbit-pass`
 
-- it parses the token
-- loads the user behind the token
-- places an authenticated object into Spring Security's context
+## University ID Rule
 
-If there is no token, the request simply continues. Protected routes will then fail with `401 Unauthorized`.
-
-## Why We Use JWT Here
-
-For this project, JWT is a good fit because:
-
-- the frontend and backend are separate applications
-- we want stateless API requests
-- it keeps the first auth slice small
-
-Later, if you want logout invalidation, refresh tokens, or institution-wide SSO, we can evolve from this base.
-
-## University ID Validation Rule
-
-For now, the backend validates only the format:
+Allowed formats:
 
 - old format: `XX-XXXX`
 - new format: `XX-XXXX-XX`
 
 All `X` characters must be digits.
 
-The current regex is:
+Regex:
 
-- `^\d{2}-\d{4}(-\d{2})?$`
-
-This does not verify whether the ID exists in a university system yet. It only ensures requests are shaped correctly.
+```text
+^\d{2}-\d{4}(-\d{2})?$
+```
 
 ## Security Notes
 
-- The default JWT secret in `application.yml` is for development only.
-- Production should always set `SPACEH_JWT_SECRET` through the environment.
-- Passwords should only ever enter the database after BCrypt encoding.
-- Access rules are currently authentication-based; finer role-based authorization comes next.
+- the default JWT secret is for local development only
+- production must set `SPACEH_JWT_SECRET`
+- production must set `SPACEH_ALLOWED_ORIGIN`
+- passwords are stored as BCrypt hashes
+- admin-only JSON endpoints require a valid `ADMIN` bearer token

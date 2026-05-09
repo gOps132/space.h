@@ -1,6 +1,6 @@
 # CI and Security Automation
 
-This repository uses GitHub Actions for both delivery confidence and baseline security checks.
+This repository uses GitHub Actions for delivery confidence and baseline security checks.
 
 ## Workflows
 
@@ -9,16 +9,17 @@ This repository uses GitHub Actions for both delivery confidence and baseline se
 Purpose:
 
 - verify the frontend still builds
-- verify the backend test suite still passes
+- verify the PHP backend still lints and passes tests
 
 Current jobs:
 
 - `Frontend Build`
   - installs `frontend/` dependencies
   - runs the production build
-- `Backend Test`
-  - sets up Java 17
-  - runs `mvn test` inside `backend/`
+- `Backend PHP Test`
+  - sets up PHP 8.3 with `pdo_mysql`
+  - lints every PHP file with `php -l`
+  - runs `php tests/run.php`
 
 ### `security.yml`
 
@@ -29,7 +30,7 @@ Purpose:
 Current jobs:
 
 - `Secret Scan`
-  - scans the repository history and contents for leaked credentials
+  - scans repository history and contents for leaked credentials
 - `Dependency Vulnerability Scan`
   - scans manifests and lockfiles for known vulnerable packages
 - `Frontend npm audit`
@@ -39,12 +40,12 @@ Current jobs:
 
 Purpose:
 
-- run GitHub's deeper static analysis for both the frontend and backend codebases
+- run GitHub's deeper static analysis for both frontend and backend code
 
-This is the best fit for the "continuous security audits plus occasional larger review" direction right now because it provides scheduled, language-aware analysis for:
+Current languages:
 
-- Java / Spring Boot
 - JavaScript / TypeScript
+- PHP
 
 ## Why Split CI and Security
 
@@ -53,4 +54,4 @@ Build confidence and security confidence are related but not identical.
 - `CI` tells us whether the project still works
 - `Security` tells us whether new risk may have been introduced
 
-Keeping them separate makes failures easier to understand and triage.
+Keeping them separate makes failures easier to triage.

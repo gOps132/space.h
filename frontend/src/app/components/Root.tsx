@@ -1,10 +1,12 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router";
-import { BookOpen, GraduationCap, Library, LogIn, Menu, Settings, User, X } from "lucide-react";
+import { BookOpen, GraduationCap, Library, LogIn, LogOut, Menu, Settings, User, X } from "lucide-react";
 import { useState } from "react";
+import { clearSession, getStoredUser } from "../api/client";
 
 export default function Root() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const currentUser = getStoredUser();
 
   const navItems = [
     { label: "Guest View", to: "/guest", icon: Library },
@@ -14,6 +16,10 @@ export default function Root() {
   ];
 
   const closeMenu = () => setIsMobileMenuOpen(false);
+  const logOut = () => {
+    clearSession();
+    closeMenu();
+  };
 
   return (
     <div className="min-h-screen bg-parchment text-walnut selection:bg-oxblood/10 selection:text-oxblood">
@@ -48,19 +54,30 @@ export default function Root() {
                 {item.label}
               </NavLink>
             ))}
-            <NavLink
-              to="/login"
-              className={({ isActive }) =>
-                `flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/30 ${
-                  isActive || location.pathname === "/signup"
-                    ? "bg-oxblood text-parchment"
-                    : "bg-walnut text-parchment hover:bg-oxblood"
-                }`
-              }
-            >
-              <LogIn className="h-4 w-4" aria-hidden="true" />
-              Log In
-            </NavLink>
+            {currentUser ? (
+              <Link
+                to="/login"
+                onClick={logOut}
+                className="flex items-center gap-2 rounded-xl bg-walnut px-4 py-2 text-sm font-medium text-parchment transition-colors hover:bg-oxblood focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/30"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                Log Out
+              </Link>
+            ) : (
+              <NavLink
+                to="/login"
+                className={({ isActive }) =>
+                  `flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/30 ${
+                    isActive || location.pathname === "/signup"
+                      ? "bg-oxblood text-parchment"
+                      : "bg-walnut text-parchment hover:bg-oxblood"
+                  }`
+                }
+              >
+                <LogIn className="h-4 w-4" aria-hidden="true" />
+                Log In
+              </NavLink>
+            )}
           </div>
 
           <button
@@ -92,6 +109,25 @@ export default function Root() {
                   {item.label}
                 </NavLink>
               ))}
+              {currentUser ? (
+                <Link
+                  to="/login"
+                  onClick={logOut}
+                  className="flex items-center gap-2 rounded-lg bg-walnut px-2 py-2 text-sm font-medium text-parchment"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                  Log Out
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  onClick={closeMenu}
+                  className="flex items-center gap-2 rounded-lg bg-oxblood px-2 py-2 text-sm font-medium text-parchment"
+                >
+                  <LogIn className="h-4 w-4" aria-hidden="true" />
+                  Log In
+                </Link>
+              )}
             </div>
           </div>
         )}

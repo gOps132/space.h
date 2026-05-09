@@ -1,27 +1,53 @@
 services:
-  postgres:
-    image: postgres:16-alpine
+  mysql:
+    image: mysql:8.4
     environment:
-      POSTGRES_DB: spaceh
-      POSTGRES_USER: spaceh
-      POSTGRES_PASSWORD: spaceh
+      MYSQL_DATABASE: spaceh
+      MYSQL_USER: spaceh
+      MYSQL_PASSWORD: spaceh
+      MYSQL_ROOT_PASSWORD: spaceh-root
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - mysql-data:/var/lib/mysql
+      - ./backend/schema/mysql.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pspaceh-root"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     environment:
-      SPACEH_DB_URL: jdbc:postgresql://postgres:5432/spaceh
+      SPACEH_DB_HOST: mysql
+      SPACEH_DB_PORT: 3306
+      SPACEH_DB_NAME: spaceh
       SPACEH_DB_USERNAME: spaceh
       SPACEH_DB_PASSWORD: spaceh
+      SPACEH_JWT_SECRET: spaceh-development-secret-spaceh-development-secret
+      SPACEH_ALLOWED_ORIGIN: http://localhost:5173
     ports:
-      - "8080:8080"
+      - "8080:80"
     depends_on:
-      - postgres
+      mysql:
+        condition: service_healthy
+
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: spaceh
+      PMA_PASSWORD: spaceh
+      MYSQL_ROOT_PASSWORD: spaceh-root
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
 
   frontend:
     image: node:20-alpine
@@ -35,4 +61,4 @@ services:
       - backend
 
 volumes:
-  postgres-data:
+  mysql-data:

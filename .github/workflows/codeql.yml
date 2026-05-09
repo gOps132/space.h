@@ -22,7 +22,7 @@ jobs:
       matrix:
         language:
           - javascript-typescript
-          - java-kotlin
+          - php
 
     steps:
       - name: Checkout repository
@@ -47,19 +47,6 @@ jobs:
         run: |
           npm ci
           npm run build
-
-      - name: Setup Java
-        if: matrix.language == 'java-kotlin'
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: maven
-
-      - name: Build backend for CodeQL
-        if: matrix.language == 'java-kotlin'
-        working-directory: backend
-        run: mvn -B -DskipTests compile
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

@@ -5,7 +5,7 @@ Space.h is a full-stack library seat and room reservation system for university 
 ## Repository Layout
 
 - `frontend/` React + Vite client
-- `backend/` Spring Boot API
+- `backend/` PHP + Apache API with MySQL persistence
 - `docs/` living project documentation, architecture notes, and development workflow
 - `.agent/` agent operating rules for CI, security, and commit discipline
 
@@ -21,4 +21,10 @@ The platform is designed around four roles:
 ## Development
 
 Project setup, workflows, architecture notes, and implementation decisions live under `docs/`.
+
+## Local Services
+
+- Frontend dev server: `http://localhost:5173`
+- Apache app/API: `http://localhost:8080`
+- phpMyAdmin: `http://localhost:8081`
   

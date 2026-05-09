@@ -6,8 +6,8 @@
   - React application
   - UI state, routing, and browser-facing concerns
 - `backend/`
-  - Spring Boot application
-  - API, domain rules, persistence, scheduling, and security
+  - plain PHP application served by Apache
+  - API gateway, MySQL persistence, and production-style Apache site host
 - `docs/`
   - architecture notes
   - setup guides
