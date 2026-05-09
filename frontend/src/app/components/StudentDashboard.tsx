@@ -224,21 +224,21 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-12 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+    <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
+      <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
           <h1 className="mb-2 text-4xl font-serif">Student Reservations</h1>
           <p className="font-serif text-lg italic leading-none text-walnut/60">Welcome back, {currentUser.fullName}.</p>
         </div>
-        <div className="academic-border flex gap-4 rounded-2xl bg-walnut/5 p-4">
+        <div className="academic-border grid w-full grid-cols-[1fr_auto_1fr] gap-4 rounded-xl bg-walnut/5 p-3 md:w-auto">
           <StatusMetric label="Account Status" value={currentUser.accountStatus} tone="moss" />
           <div className="w-px bg-walnut/10" />
           <StatusMetric label="Booking Hold" value={isBanned ? "Active" : "None"} tone={isBanned ? "oxblood" : "walnut"} />
         </div>
       </div>
 
-      <section>
-        <div className="mb-6 flex items-center gap-2">
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
           <Clock className="h-5 w-5 text-oxblood" aria-hidden="true" />
           <h2 className="text-2xl font-serif">Active Reservation</h2>
         </div>
@@ -296,14 +296,19 @@ export default function StudentDashboard() {
         )}
       </section>
 
-      <section className="grid gap-8 lg:grid-cols-[1fr_360px]">
+      <section className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-8">
-          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-            <div className="w-full md:max-w-md">
-              <h2 className="mb-6 flex items-center gap-2 text-2xl font-serif">
+          <div className="space-y-5">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+              <h2 className="flex items-center gap-2 text-2xl font-serif">
                 <Search className="h-5 w-5 text-oxblood" aria-hidden="true" />
                 Find an available seat
               </h2>
+              <p className="text-sm text-walnut/45">{filteredResources.length} spaces match your filters</p>
+            </div>
+
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
+              <div className="w-full xl:max-w-md">
               <label htmlFor="resource-search" className="sr-only">Search by resource name or ID</label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-walnut/25" aria-hidden="true" />
@@ -317,9 +322,9 @@ export default function StudentDashboard() {
                   className="academic-border w-full rounded-xl bg-parchment py-4 pl-12 pr-4 transition-colors placeholder:text-walnut/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
                 />
               </div>
-            </div>
+              </div>
 
-            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex flex-wrap items-end gap-3">
               <SelectField label="Floor" value={filterFloor} onChange={setFilterFloor}>
                 <option value="all">All Floors</option>
                 {floors.map((floor) => <option key={floor} value={floor}>Floor {floor}</option>)}
@@ -333,10 +338,11 @@ export default function StudentDashboard() {
                 <Filter className="h-4 w-4" aria-hidden="true" />
                 Power
               </label>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="academic-border overflow-hidden rounded-2xl bg-parchment">
             {filteredResources.map((resource) => (
               <SpaceCard
                 key={resource.resource_id}
@@ -349,7 +355,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        <aside className="academic-border sticky top-24 h-fit rounded-2xl bg-parchment p-6 shadow-[0_4px_20px_rgba(45,36,30,0.06)]">
+        <aside className="academic-border h-fit rounded-2xl bg-parchment p-6 shadow-[0_4px_20px_rgba(45,36,30,0.06)] lg:sticky lg:top-24">
           <h2 className="mb-2 text-xl font-serif">Reserve a Space</h2>
           <p className="mb-6 text-sm text-walnut/60">Choose an open space and the time you plan to use it.</p>
 
@@ -442,25 +448,25 @@ function SpaceCard({ resource, selected, unavailableReason, onSelect }: { resour
   const isAvailable = resource.current_status === "Available" && !unavailableReason;
 
   return (
-    <article className={`academic-border rounded-2xl p-6 transition-shadow ${isAvailable ? "bg-parchment hover:premium-shadow" : "bg-walnut/5 opacity-75"} ${selected ? "ring-2 ring-oxblood/25" : ""}`}>
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="mb-1 truncate text-[10px] font-semibold uppercase tracking-widest text-walnut/40">
+    <article className={`grid gap-4 border-b border-walnut/5 p-4 transition-colors last:border-b-0 sm:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.8fr)_auto] sm:items-center sm:px-5 ${isAvailable ? "bg-parchment hover:bg-walnut/[0.025]" : "bg-walnut/5 opacity-75"} ${selected ? "relative z-10 bg-oxblood/[0.04] ring-2 ring-inset ring-oxblood/25" : ""}`}>
+      <div className="min-w-0">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <p className="truncate text-[10px] font-semibold uppercase tracking-widest text-walnut/40">
             Floor {resource.floor} - {resource.zone_location}
           </p>
-          <h3 className="truncate text-xl font-serif">{resource.resource_name}</h3>
+          <StatusBadge status={resource.current_status} />
         </div>
-        <StatusBadge status={resource.current_status} />
+        <h3 className="truncate text-xl font-serif">{resource.resource_name}</h3>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-3 text-xs font-medium text-walnut/60">
+      <div className="flex flex-wrap gap-2 text-xs font-medium text-walnut/60">
         {resource.has_power_outlet && <span className="flex items-center gap-1.5 rounded-md bg-walnut/5 px-2 py-1"><Zap className="h-3.5 w-3.5 fill-candlelight text-candlelight" aria-hidden="true" /> Power Ready</span>}
         {resource.capacity && <span className="flex items-center gap-1.5 rounded-md bg-walnut/5 px-2 py-1"><Users className="h-3.5 w-3.5" aria-hidden="true" /> Fits {resource.capacity}</span>}
         {resource.min_participants && resource.min_participants > 1 && <span className="flex items-center gap-1.5 rounded-md bg-walnut/5 px-2 py-1"><Users className="h-3.5 w-3.5" aria-hidden="true" /> Min {resource.min_participants}</span>}
         {unavailableReason && <span className="rounded-md bg-oxblood/10 px-2 py-1 text-oxblood">{unavailableReason}</span>}
       </div>
 
-      <div className="flex items-center justify-between border-t border-walnut/5 pt-6">
+      <div className="flex items-center justify-between gap-4 sm:justify-end">
         <span className="text-[10px] uppercase tracking-widest text-walnut/35">{resource.resource_id}</span>
         <button
           type="button"
