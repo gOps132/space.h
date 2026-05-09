@@ -1,4 +1,4 @@
-FROM node:20-alpine AS frontend-build
+FROM node:26-alpine AS frontend-build
 
 WORKDIR /workspace/frontend
 
@@ -11,7 +11,7 @@ RUN npm ci
 COPY frontend ./
 RUN npm run build
 
-FROM php:8.3-apache
+FROM php:8.5-apache
 
 RUN docker-php-ext-install pdo_mysql \
     && a2enmod rewrite
