@@ -3,7 +3,6 @@ import { ArrowLeft, BookOpen, Users, Zap, Shield, Calendar, BarChart3 } from "lu
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import BusinessRulesInfo from "./BusinessRulesInfo";
-import { ThemeToggle } from "./ui/ThemeToggle";
 
 export default function AboutLibSpace() {
   return (
@@ -21,9 +20,6 @@ export default function AboutLibSpace() {
             <div className="flex items-center gap-3">
               <BookOpen className="w-8 h-8 text-primary shadow-sm" />
               <h1 className="text-2xl" style={{ fontFamily: 'var(--font-heading)' }}>About &lt;Space.h&gt;</h1>
-            </div>
-            <div className="flex-1 flex justify-end">
-              <ThemeToggle />
             </div>
           </div>
         </div>

@@ -4,20 +4,9 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { getFloorHeatmap } from "../data/enhancedMockData";
-import { useState, useEffect } from "react";
-import { ThemeToggle } from "./ui/ThemeToggle";
-import { useTheme } from "next-themes";
 
 export default function HiddenArchiveLanding() {
   const floorData = getFloorHeatmap();
-  const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
 
   return (
     <div className="h-screen overflow-y-auto snap-y snap-mandatory scroll-smooth relative">
@@ -45,8 +34,6 @@ export default function HiddenArchiveLanding() {
               </div>
 
               <div className="flex items-center gap-4">
-                <ThemeToggle />
-
                 <Link to="/login">
                   <Button
                     variant="outline"
