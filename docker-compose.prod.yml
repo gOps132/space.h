@@ -1,0 +1,55 @@
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: spaceh
+      MYSQL_USER: spaceh
+      MYSQL_PASSWORD: ${SPACEH_DB_PASSWORD:?}
+      MYSQL_ROOT_PASSWORD: ${SPACEH_DB_ROOT_PASSWORD:?}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./backend/schema/mysql.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${SPACEH_DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_SPACEH_API_BASE: ${SPACEH_PUBLIC_URL:-https://space-h.cedrake.dev}
+    restart: unless-stopped
+    environment:
+      SPACEH_DB_HOST: mysql
+      SPACEH_DB_PORT: 3306
+      SPACEH_DB_NAME: spaceh
+      SPACEH_DB_USERNAME: spaceh
+      SPACEH_DB_PASSWORD: ${SPACEH_DB_PASSWORD:?}
+      SPACEH_JWT_SECRET: ${SPACEH_JWT_SECRET:?}
+      SPACEH_ALLOWED_ORIGIN: ${SPACEH_PUBLIC_URL:-https://space-h.cedrake.dev}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: spaceh
+      PMA_PASSWORD: ${SPACEH_DB_PASSWORD:?}
+      UPLOAD_LIMIT: 64M
+      MEMORY_LIMIT: 256M
+    ports:
+      - "127.0.0.1:8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql-data:
