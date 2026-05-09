@@ -229,9 +229,9 @@ export default function EnhancedAdminDashboard() {
     <div className="mx-auto max-w-7xl space-y-12 px-4 py-12 sm:px-6 lg:px-8">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div>
-          <h1 className="mb-2 text-4xl font-serif">Operational Command</h1>
-          <p className="font-serif text-lg italic leading-none text-walnut/60">University Library Resource Management</p>
-          <p className="mt-3 text-sm text-walnut/45">Source: {syncState === "live" ? "PHP backend" : "local fallback"}</p>
+          <h1 className="mb-2 text-4xl font-serif">Library Operations</h1>
+          <p className="font-serif text-lg italic leading-none text-walnut/60">Monitor spaces, reservations, and maintenance.</p>
+          <p className="mt-3 text-sm text-walnut/45">{syncState === "live" ? "Showing live data" : "Showing latest saved data"}</p>
         </div>
         <div className="flex flex-wrap gap-4">
           <button type="button" onClick={exportData} className="flex items-center gap-2 rounded-xl bg-walnut px-6 py-3 text-sm font-medium text-parchment transition-colors hover:bg-walnut/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
@@ -248,15 +248,15 @@ export default function EnhancedAdminDashboard() {
       <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
         <AdminStatCard label="Total Spaces" value={resources.length} delta={`${attendanceLogs.length} active logs`} icon={Settings} />
         <AdminStatCard label="Current Occupancy" value={`${metrics.occupancyRate}%`} delta={`${metrics.pendingReservations} pending`} icon={Users} />
-        <AdminStatCard label="Maintenance Alerts" value={metrics.maintenanceAlerts} delta="Freeze enabled" icon={Wrench} warning />
-        <AdminStatCard label="No-Shows" value={metrics.noShows} delta="Penalty tracked" icon={AlertCircle} warning={metrics.noShows > 0} />
+        <AdminStatCard label="Maintenance" value={metrics.maintenanceAlerts} delta="Unavailable for booking" icon={Wrench} warning />
+        <AdminStatCard label="No-Shows" value={metrics.noShows} delta="Booking holds" icon={AlertCircle} warning={metrics.noShows > 0} />
       </section>
 
       <section className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div className="academic-border premium-shadow rounded-2xl bg-parchment p-8">
           <div className="mb-6">
             <h2 className="text-2xl font-serif">Traffic Flow</h2>
-            <p className="text-sm text-walnut/60">Peak usage carried over from the existing admin analytics.</p>
+            <p className="text-sm text-walnut/60">Visits by hour, used to plan staffing and room turnover.</p>
           </div>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -324,7 +324,7 @@ export default function EnhancedAdminDashboard() {
                 <TableHead>Res. ID</TableHead>
                 <TableHead>Space Name</TableHead>
                 <TableHead>Classification</TableHead>
-                <TableHead>Booking Rule</TableHead>
+                <TableHead>Minimum</TableHead>
                 <TableHead>Floor / Zone</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead align="right">Actions</TableHead>
@@ -478,7 +478,7 @@ function AddResourceDialog({
           <DialogHeader className="border-b border-walnut/10 px-6 py-5 text-left">
             <DialogTitle className="font-serif text-2xl text-walnut">{editingResource ? "Edit Library Resource" : "Add Library Resource"}</DialogTitle>
             <DialogDescription className="text-sm text-walnut/60">
-              {editingResource ? "Update the inventory item details staff use for booking and operations." : "Create an inventory item with the exact location and booking attributes staff expect to manage."}
+              {editingResource ? "Update the location, capacity, and booking rules for this space." : "Add a space with its location, capacity, and booking rules."}
             </DialogDescription>
           </DialogHeader>
 

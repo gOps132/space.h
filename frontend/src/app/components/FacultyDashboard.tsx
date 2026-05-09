@@ -41,7 +41,7 @@ export default function FacultyDashboard() {
   useEffect(() => {
     refresh()
       .catch(() => {
-        toast.error("Live faculty room data unavailable. Showing local fallback.");
+        toast.error("Could not refresh room data. Showing latest saved room list.");
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -100,19 +100,19 @@ export default function FacultyDashboard() {
   };
 
   if (isLoading || currentUser === null) {
-    return <div className="mx-auto max-w-7xl px-4 py-12 text-sm italic text-walnut/50 sm:px-6 lg:px-8">Loading live faculty portal...</div>;
+    return <div className="mx-auto max-w-7xl px-4 py-12 text-sm italic text-walnut/50 sm:px-6 lg:px-8">Loading room reservations...</div>;
   }
 
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-4 py-12 sm:px-6 lg:px-8">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div>
-          <h1 className="mb-2 text-4xl font-serif">Faculty Portal</h1>
-          <p className="font-serif text-lg italic leading-none text-walnut/60">Consultation & Research Workspace Management</p>
+          <h1 className="mb-2 text-4xl font-serif">Faculty Room Reservations</h1>
+          <p className="font-serif text-lg italic leading-none text-walnut/60">Book consultation and research rooms.</p>
         </div>
         <div className="academic-border flex items-center gap-2 rounded-full bg-parchment px-6 py-3">
           <BookOpen className="h-4 w-4 text-oxblood" aria-hidden="true" />
-          <span className="text-sm font-medium">Credentialed as {currentUser.fullName}</span>
+          <span className="text-sm font-medium">Signed in as {currentUser.fullName}</span>
         </div>
       </div>
 
@@ -138,9 +138,9 @@ export default function FacultyDashboard() {
               <Info className="h-6 w-6 text-oxblood" aria-hidden="true" />
             </div>
             <div className="space-y-3">
-              <h2 className="text-xl font-serif">Research Priority</h2>
+              <h2 className="text-xl font-serif">Faculty Room Access</h2>
               <p className="text-sm leading-relaxed text-walnut/60">
-                Faculty members have priority access to faculty-exclusive consultation rooms. Reservations are checked against existing room bookings before confirmation.
+                Faculty-only rooms stay reserved for consultations and research meetings. We check room conflicts before confirming your booking.
               </p>
             </div>
           </section>
@@ -189,8 +189,8 @@ export default function FacultyDashboard() {
           </section>
 
           <section className="rounded-2xl bg-walnut p-8 text-parchment/65">
-            <h2 className="mb-4 text-lg font-serif text-parchment">Facility Support</h2>
-            <p className="text-xs leading-relaxed">Need a room setup or accessibility accommodation? Contact the Library Concierge.</p>
+            <h2 className="mb-4 text-lg font-serif text-parchment">Room Support</h2>
+            <p className="text-xs leading-relaxed">Need a room setup or accessibility accommodation? Contact the library desk.</p>
             <div className="mt-4 flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-parchment/10">
                 <Clock className="h-4 w-4 text-parchment" aria-hidden="true" />
