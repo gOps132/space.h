@@ -1,6 +1,8 @@
 services:
   mysql:
-    image: mysql:8.4
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: spaceh
@@ -9,7 +11,6 @@ services:
       MYSQL_ROOT_PASSWORD: ${SPACEH_DB_ROOT_PASSWORD:?}
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./backend/schema/mysql.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${SPACEH_DB_ROOT_PASSWORD}"]
       interval: 10s
