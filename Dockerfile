@@ -2,6 +2,9 @@ FROM node:20-alpine AS frontend-build
 
 WORKDIR /workspace/frontend
 
+ARG VITE_SPACEH_API_BASE=
+ENV VITE_SPACEH_API_BASE=${VITE_SPACEH_API_BASE}
+
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
