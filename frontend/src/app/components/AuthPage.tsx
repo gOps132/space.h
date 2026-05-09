@@ -1,7 +1,14 @@
 import { FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { BookOpen, GraduationCap, Library, Shield } from "lucide-react";
+import { BookOpen, GraduationCap, Shield } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { ApiError, login } from "../api/client";
+
+const rolePresets = [
+  { label: "Student", id: "24-0001-01", password: "library-pass", icon: BookOpen, note: "Reserve seats and study rooms." },
+  { label: "Faculty", id: "23-1024", password: "compiler-pass", icon: GraduationCap, note: "Book consultation rooms." },
+  { label: "Admin", id: "22-7777-03", password: "orbit-pass", icon: Shield, note: "Monitor library operations." },
+];
 
 export default function AuthPage() {
   const location = useLocation();
@@ -40,20 +47,30 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_420px] lg:px-8">
-      <section className="flex min-h-[520px] flex-col justify-center">
-        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-oxblood">{isSignup ? "Request Access" : "Welcome Back"}</p>
-        <h1 className="mb-6 max-w-2xl text-5xl font-serif leading-tight text-walnut text-balance">
+    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:px-8">
+      <section className="flex min-h-[480px] flex-col justify-center">
+        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-oxblood">{isSignup ? "Access desk" : "Library account"}</p>
+        <h1 className="mb-6 max-w-2xl text-4xl font-serif leading-tight text-walnut text-balance sm:text-5xl">
           {isSignup ? "Request library access." : "Return to your reservation desk."}
         </h1>
         <p className="max-w-xl text-lg leading-relaxed text-walnut/65">
           {isSignup ? "Bring your university ID to the library desk so staff can create your account." : "Use your university ID to reserve spaces, check in, and manage bookings."}
         </p>
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-3">
-          <RoleLink to="/student" icon={BookOpen} label="Student" />
-          <RoleLink to="/faculty" icon={GraduationCap} label="Faculty" />
-          <RoleLink to="/admin" icon={Shield} label="Admin" />
+        <div className="mt-10 grid gap-3 sm:grid-cols-3" aria-label="Demo account presets">
+          {rolePresets.map((role) => (
+            <RolePreset
+              key={role.label}
+              {...role}
+              disabled={isSignup || isSubmitting}
+              onSelect={() => {
+                setUniversityId(role.id);
+                setPassword(role.password);
+                setError("");
+                setFieldError("");
+              }}
+            />
+          ))}
         </div>
       </section>
 
@@ -121,11 +138,31 @@ function allowedRedirect(redirectTo: string | null, role: "STUDENT" | "FACULTY" 
   return true;
 }
 
-function RoleLink({ to, icon: Icon, label }: { to: string; icon: typeof Library; label: string }) {
+function RolePreset({
+  disabled,
+  icon: Icon,
+  label,
+  note,
+  onSelect,
+}: {
+  disabled: boolean;
+  icon: LucideIcon;
+  label: string;
+  note: string;
+  onSelect: () => void;
+}) {
   return (
-    <Link to={to} className="academic-border flex items-center gap-3 rounded-2xl bg-parchment p-4 text-sm font-medium text-walnut transition-colors hover:border-oxblood/30 hover:bg-oxblood/[0.03]">
-      <Icon className="h-5 w-5 text-oxblood" aria-hidden="true" />
-      {label}
-    </Link>
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={disabled}
+      className="academic-border min-h-24 rounded-xl bg-parchment p-4 text-left transition-colors hover:border-oxblood/30 hover:bg-oxblood/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <span className="mb-3 flex items-center gap-2 text-sm font-semibold text-walnut">
+        <Icon className="h-4 w-4 text-oxblood" aria-hidden="true" />
+        {label}
+      </span>
+      <span className="block text-xs leading-relaxed text-walnut/55">{note}</span>
+    </button>
   );
 }

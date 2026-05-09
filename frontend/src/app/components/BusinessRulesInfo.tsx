@@ -1,5 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
 import { CheckCircle2 } from "lucide-react";
 
 export default function BusinessRulesInfo() {
@@ -67,33 +65,27 @@ export default function BusinessRulesInfo() {
   ];
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-medium">Library Access Rules</h2>
-      <p className="text-gray-600 mb-6">These rules keep study spaces available and fair during busy hours.</p>
-      
-      <div className="grid gap-4">
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-serif">Library Access Rules</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-walnut/60">Rules are checked before booking, cancellation, and check-in so availability stays fair during busy hours.</p>
+      </div>
+
+      <div className="academic-border overflow-hidden rounded-2xl bg-parchment">
         {rules.map(rule => (
-          <Card key={rule.id}>
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-medium">
-                    {rule.id}
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">{rule.title}</CardTitle>
-                  </div>
-                </div>
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-3">{rule.description}</p>
-              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                {rule.status}
-              </Badge>
-            </CardContent>
-          </Card>
+          <article key={rule.id} className="grid gap-3 border-b border-walnut/5 p-5 last:border-b-0 sm:grid-cols-[3rem_minmax(0,1fr)_auto] sm:items-start">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-walnut/5 font-mono text-xs text-walnut/55">
+              {rule.id.toString().padStart(2, "0")}
+            </div>
+            <div>
+              <h3 className="font-serif text-lg text-walnut">{rule.title}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-walnut/60">{rule.description}</p>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg bg-moss/10 px-3 py-2 text-xs font-semibold text-moss sm:justify-self-end">
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              <span>{rule.status}</span>
+            </div>
+          </article>
         ))}
       </div>
     </div>

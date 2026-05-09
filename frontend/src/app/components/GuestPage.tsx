@@ -27,11 +27,11 @@ export default function GuestPage() {
   const availableRooms = resources.filter((resource) => resource.resource_type === "Group Study Room" && resource.current_status === "Available").length;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-16 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-end">
+    <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
+      <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
         <div className="max-w-2xl">
-          <h1 className="mb-6 text-5xl font-serif leading-tight text-walnut text-balance">Live Space Availability</h1>
-          <p className="text-lg italic text-walnut/60">
+          <h1 className="mb-4 text-4xl font-serif leading-tight text-walnut text-balance sm:text-5xl">Live Space Availability</h1>
+          <p className="text-base italic text-walnut/60">
             Last updated {new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date())}.
           </p>
           <p className="mt-3 text-sm text-walnut/45">
@@ -40,7 +40,7 @@ export default function GuestPage() {
         </div>
         <Link
           to="/student"
-          className="flex shrink-0 items-center gap-2 rounded-full bg-oxblood px-8 py-4 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/30"
+          className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-oxblood px-6 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/30"
         >
           <LogIn className="h-5 w-5" aria-hidden="true" />
           Log In to Reserve
@@ -48,23 +48,20 @@ export default function GuestPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <section className="academic-border premium-shadow rounded-2xl bg-parchment p-8 lg:col-span-2">
-          <h2 className="mb-8 border-b border-walnut/10 pb-4 text-2xl font-serif">Open Seats and Rooms</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <section className="academic-border premium-shadow overflow-hidden rounded-2xl bg-parchment lg:col-span-2">
+          <div className="flex items-center justify-between gap-4 border-b border-walnut/10 p-5 sm:p-6">
+            <h2 className="text-2xl font-serif">Open Seats and Rooms</h2>
+            <span className="text-sm text-walnut/45">{resources.length} tracked</span>
+          </div>
+          <div className="divide-y divide-walnut/5">
             {resources.map((space) => (
-              <div key={space.resource_id} className="rounded-xl border border-walnut/10 bg-walnut/5 p-4 text-center">
-                <p className="mb-2 truncate text-xs font-bold uppercase leading-none tracking-widest text-walnut/40">{space.resource_id}</p>
-                <p className="line-clamp-1 text-xs text-walnut/50">{space.resource_name}</p>
-                <div className={`mt-3 text-xs font-bold uppercase tracking-widest ${space.current_status === "Available" ? "text-moss" : "text-oxblood/60"}`}>
-                  {space.current_status === "Available" ? "Open" : space.current_status}
-                </div>
-              </div>
+              <SpaceRow key={space.resource_id} space={space} />
             ))}
           </div>
         </section>
 
-        <aside className="space-y-8">
-          <section className="rounded-2xl bg-walnut p-8 text-parchment/65">
+        <aside className="space-y-6">
+          <section className="rounded-2xl bg-walnut p-6 text-parchment/65">
             <h2 className="mb-6 text-xl font-serif text-parchment">Today at a Glance</h2>
             <div className="space-y-4">
               <StatRow label="Overall Occupancy" value={`${occupancyPercent}%`} />
@@ -77,7 +74,7 @@ export default function GuestPage() {
             </p>
           </section>
 
-          <section className="rounded-2xl border border-candlelight/20 bg-candlelight/[0.05] p-8">
+          <section className="rounded-2xl border border-candlelight/20 bg-candlelight/[0.05] p-6">
             <h2 className="mb-4 text-lg font-serif">Floor Snapshot</h2>
             <div className="space-y-4">
               {floorData.map((floor) => (
@@ -97,7 +94,7 @@ export default function GuestPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-walnut/10 bg-parchment p-8">
+          <section className="rounded-2xl border border-walnut/10 bg-parchment p-6">
             <h2 className="mb-4 text-lg font-serif">Library</h2>
             <div className="space-y-2 text-sm text-walnut/60">
               <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-oxblood" aria-hidden="true" /> Main Library Center</p>
@@ -107,6 +104,26 @@ export default function GuestPage() {
         </aside>
       </div>
     </div>
+  );
+}
+
+function SpaceRow({ space }: { space: StudyResource }) {
+  const open = space.current_status === "Available";
+
+  return (
+    <article className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5">
+      <div className="min-w-0">
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <p className="font-mono text-xs text-walnut/45">{space.resource_id}</p>
+          <span className="text-xs text-walnut/35">Level {space.floor}</span>
+        </div>
+        <h3 className="truncate font-serif text-lg text-walnut">{space.resource_name}</h3>
+        <p className="mt-1 text-sm text-walnut/50">{space.zone_location}</p>
+      </div>
+      <div className={`w-fit rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest ${open ? "bg-moss/10 text-moss" : "bg-oxblood/10 text-oxblood"}`}>
+        {open ? "Open" : space.current_status}
+      </div>
+    </article>
   );
 }
 

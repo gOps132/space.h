@@ -279,14 +279,6 @@
   will-change: opacity, transform;
 }
 
-.spaceh-hero-photo-bokeh {
-  background:
-    radial-gradient(circle at 78% 16%, oklch(98.4% 0.012 89 / 0.18) 0 8rem, transparent 17rem),
-    radial-gradient(circle at 60% 70%, oklch(98.4% 0.012 89 / 0.12) 0 7rem, transparent 15rem),
-    linear-gradient(180deg, oklch(98.4% 0.012 89 / 0.14), oklch(98.4% 0.012 89 / 0.04));
-  backdrop-filter: blur(0.6px);
-}
-
 .spaceh-hero-diagonal-blend {
   background:
     linear-gradient(
