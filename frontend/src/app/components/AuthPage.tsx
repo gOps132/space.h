@@ -15,8 +15,8 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const isSignup = location.pathname === "/signup";
   const redirectTo = new URLSearchParams(location.search).get("redirect");
-  const [universityId, setUniversityId] = useState("24-0001-01");
-  const [password, setPassword] = useState("library-pass");
+  const [universityId, setUniversityId] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [fieldError, setFieldError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -84,7 +84,7 @@ export default function AuthPage() {
             <span className="px-1 text-[10px] font-semibold uppercase tracking-widest text-walnut/40">University ID</span>
             <input
               className="academic-border w-full rounded-lg bg-muted/40 px-4 py-3 text-sm text-walnut focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20 disabled:cursor-not-allowed disabled:opacity-70"
-              placeholder="24-0001-01"
+              placeholder="University ID"
               value={universityId}
               onChange={(event) => setUniversityId(event.target.value)}
               disabled={isSignup || isSubmitting}
