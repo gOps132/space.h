@@ -30,7 +30,6 @@ export default function LandingPage() {
               />
             ))}
             <div className="absolute inset-0 bg-parchment/5" />
-            <div className="spaceh-hero-photo-bokeh absolute inset-0" />
           </div>
         </div>
         <div className="spaceh-hero-diagonal-blend absolute inset-0" aria-hidden="true" />

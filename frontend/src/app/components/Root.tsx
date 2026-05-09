@@ -30,7 +30,7 @@ export default function Root() {
         Skip to Main Content
       </a>
 
-      <header className="sticky top-0 z-50 border-b border-walnut/10 bg-parchment/90 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-walnut/10 bg-parchment shadow-[0_1px_0_rgba(45,36,30,0.03)]">
         <nav aria-label="Primary navigation" className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link to="/" onClick={closeMenu} className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/30">
             <BookOpen className="h-6 w-6 shrink-0 text-oxblood" strokeWidth={1.5} aria-hidden="true" />

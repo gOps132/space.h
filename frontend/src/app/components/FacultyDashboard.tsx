@@ -104,20 +104,20 @@ export default function FacultyDashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-12 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+    <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
+      <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
           <h1 className="mb-2 text-4xl font-serif">Faculty Room Reservations</h1>
           <p className="font-serif text-lg italic leading-none text-walnut/60">Book consultation and research rooms.</p>
         </div>
-        <div className="academic-border flex items-center gap-2 rounded-full bg-parchment px-6 py-3">
+        <div className="academic-border flex items-center gap-2 rounded-xl bg-parchment px-4 py-3">
           <BookOpen className="h-4 w-4 text-oxblood" aria-hidden="true" />
           <span className="text-sm font-medium">Signed in as {currentUser.fullName}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
-        <div className="space-y-12 lg:col-span-2">
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-8">
           <section className="space-y-6">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <h2 className="text-2xl font-serif">Available Group Rooms</h2>
@@ -126,14 +126,14 @@ export default function FacultyDashboard() {
               </a>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="academic-border overflow-hidden rounded-2xl bg-parchment">
               {groupRooms.map((room) => (
                 <RoomCard key={room.resource_id} room={room} onSelect={() => setSelectedRoom(room.resource_id)} selected={selectedRoom === room.resource_id} />
               ))}
             </div>
           </section>
 
-          <section className="academic-border flex gap-8 rounded-2xl bg-walnut/5 p-8">
+          <section className="academic-border flex gap-5 rounded-2xl bg-walnut/5 p-5 sm:p-6">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-oxblood/10">
               <Info className="h-6 w-6 text-oxblood" aria-hidden="true" />
             </div>
@@ -146,8 +146,8 @@ export default function FacultyDashboard() {
           </section>
         </div>
 
-        <aside className="space-y-8">
-          <section id="faculty-booking" className="academic-border premium-shadow rounded-2xl bg-parchment p-8">
+        <aside className="space-y-6 lg:sticky lg:top-24">
+          <section id="faculty-booking" className="academic-border premium-shadow rounded-2xl bg-parchment p-6">
             <h2 className="mb-2 flex items-center gap-2 text-xl font-serif">
               <Calendar className="h-5 w-5 text-oxblood" aria-hidden="true" />
               Reserve Room
@@ -170,7 +170,7 @@ export default function FacultyDashboard() {
             </div>
           </section>
 
-          <section className="academic-border premium-shadow rounded-2xl bg-parchment p-8">
+          <section className="academic-border premium-shadow rounded-2xl bg-parchment p-6">
             <h2 className="mb-6 border-b border-walnut/10 pb-4 text-xl font-serif">Upcoming Bookings</h2>
             <div className="space-y-6">
               {facultyReservations.length > 0 ? (
@@ -188,7 +188,7 @@ export default function FacultyDashboard() {
             </div>
           </section>
 
-          <section className="rounded-2xl bg-walnut p-8 text-parchment/65">
+          <section className="rounded-2xl bg-walnut p-6 text-parchment/65">
             <h2 className="mb-4 text-lg font-serif text-parchment">Room Support</h2>
             <p className="text-xs leading-relaxed">Need a room setup or accessibility accommodation? Contact the library desk.</p>
             <div className="mt-4 flex items-center gap-3">
@@ -208,31 +208,31 @@ function RoomCard({ room, selected, onSelect }: { room: StudyResource; selected:
   const available = room.current_status === "Available";
 
   return (
-    <article className={`academic-border rounded-2xl bg-parchment p-8 transition-shadow hover:premium-shadow ${selected ? "ring-2 ring-oxblood/25" : ""}`}>
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-walnut/40">Level {room.floor} - {room.zone_location}</p>
-          <h3 className="truncate text-2xl font-serif">{room.resource_name}</h3>
+    <article className={`grid gap-4 border-b border-walnut/5 p-4 transition-colors last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.75fr)_auto] sm:items-center sm:px-5 ${available ? "hover:bg-walnut/[0.025]" : "bg-walnut/5 opacity-75"} ${selected ? "relative z-10 bg-oxblood/[0.04] ring-2 ring-inset ring-oxblood/25" : ""}`}>
+      <div className="min-w-0">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-walnut/40">Level {room.floor} - {room.zone_location}</p>
+          <span className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${available ? "bg-moss/10 text-moss" : "bg-oxblood/10 text-oxblood"}`}>
+            {room.current_status}
+          </span>
         </div>
-        <span className={`shrink-0 rounded px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${available ? "bg-moss/10 text-moss" : "bg-oxblood/10 text-oxblood"}`}>
-          {room.current_status}
-        </span>
+        <h3 className="truncate text-xl font-serif">{room.resource_name}</h3>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-6 text-sm text-walnut/60">
-        <span className="flex items-center gap-2"><Users className="h-4 w-4" aria-hidden="true" /> Up to {room.capacity ?? 4}</span>
-        <span className="flex items-center gap-2"><MapPin className="h-4 w-4" aria-hidden="true" /> {room.is_faculty_exclusive ? "Faculty Priority" : "General Room"}</span>
+      <div className="flex flex-wrap gap-2 text-sm text-walnut/60">
+        <span className="flex items-center gap-2 rounded-md bg-walnut/5 px-2 py-1"><Users className="h-4 w-4" aria-hidden="true" /> Up to {room.capacity ?? 4}</span>
+        <span className="flex items-center gap-2 rounded-md bg-walnut/5 px-2 py-1"><MapPin className="h-4 w-4" aria-hidden="true" /> {room.is_faculty_exclusive ? "Faculty Priority" : "General Room"}</span>
       </div>
 
       <button
         type="button"
         onClick={onSelect}
         disabled={!available}
-        className={`w-full rounded-xl py-3 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25 ${
+        className={`min-h-11 rounded-xl px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25 ${
           available ? "bg-walnut text-parchment hover:bg-oxblood" : "cursor-not-allowed bg-walnut/10 text-walnut/40"
         }`}
       >
-        {selected ? "Selected" : available ? "Select for Consultation" : "Unavailable"}
+        {selected ? "Selected" : available ? "Select" : "Unavailable"}
       </button>
     </article>
   );
