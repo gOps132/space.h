@@ -54,7 +54,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     refresh()
       .catch(() => {
-        toast.error("Live reservation data unavailable. Showing local fallback.");
+        toast.error("Could not refresh reservations. Showing latest saved data.");
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -220,14 +220,14 @@ export default function StudentDashboard() {
   };
 
   if (isLoading || currentUser === null) {
-    return <div className="mx-auto max-w-7xl px-4 py-12 text-sm italic text-walnut/50 sm:px-6 lg:px-8">Loading live reservation desk...</div>;
+    return <div className="mx-auto max-w-7xl px-4 py-12 text-sm italic text-walnut/50 sm:px-6 lg:px-8">Loading your reservations...</div>;
   }
 
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-4 py-12 sm:px-6 lg:px-8">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div>
-          <h1 className="mb-2 text-4xl font-serif">Student Dashboard</h1>
+          <h1 className="mb-2 text-4xl font-serif">Student Reservations</h1>
           <p className="font-serif text-lg italic leading-none text-walnut/60">Welcome back, {currentUser.fullName}.</p>
         </div>
         <div className="academic-border flex gap-4 rounded-2xl bg-walnut/5 p-4">
@@ -350,8 +350,8 @@ export default function StudentDashboard() {
         </div>
 
         <aside className="academic-border sticky top-24 h-fit rounded-2xl bg-parchment p-6 shadow-[0_4px_20px_rgba(45,36,30,0.06)]">
-          <h2 className="mb-2 text-xl font-serif">Create Reservation</h2>
-          <p className="mb-6 text-sm text-walnut/60">Select an open space, then choose a reservation window.</p>
+          <h2 className="mb-2 text-xl font-serif">Reserve a Space</h2>
+          <p className="mb-6 text-sm text-walnut/60">Choose an open space and the time you plan to use it.</p>
 
           <div className="space-y-4">
             <SelectField label="Resource" value={selectedResource} onChange={setSelectedResource}>
@@ -365,9 +365,9 @@ export default function StudentDashboard() {
 
             <TextField id="student-start" label="Start Time" type="datetime-local" value={startTime} onChange={setStartTime} />
             <TextField id="student-end" label="End Time" type="datetime-local" value={endTime} onChange={setEndTime} />
-            <TextField id="co-bookers" label="Co-booker IDs" value={coBookers} onChange={setCoBookers} placeholder="24-0002-01, 24-0003-01" />
+            <TextField id="co-bookers" label="Group Member IDs" value={coBookers} onChange={setCoBookers} placeholder="24-0002-01, 24-0003-01" />
             <p className="px-1 text-xs leading-relaxed text-walnut/50">
-              Co-booker IDs are university IDs for students joining a room. Room minimum comes from admin settings.
+              Add university IDs for students sharing a group room. Individual seats do not need extra IDs.
             </p>
 
             <button type="button" onClick={() => handleBooking()} className="w-full rounded-xl bg-oxblood py-3 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
@@ -380,9 +380,9 @@ export default function StudentDashboard() {
       <section className="flex items-start gap-6 rounded-2xl border border-oxblood/10 bg-oxblood/[0.03] p-8">
         <AlertTriangle className="mt-1 h-6 w-6 shrink-0 text-oxblood" aria-hidden="true" />
         <div className="space-y-2">
-          <h2 className="text-xl font-serif">Operational Notice</h2>
+          <h2 className="text-xl font-serif">Before You Book</h2>
           <p className="max-w-3xl text-sm leading-relaxed text-walnut/70">
-            Booking a space implies acceptance of the 15-minute grace period, 30-minute cancellation window, and check-out responsibility rules.
+            Check in within 15 minutes, cancel at least 30 minutes before your start time, and check out when you leave.
           </p>
         </div>
       </section>

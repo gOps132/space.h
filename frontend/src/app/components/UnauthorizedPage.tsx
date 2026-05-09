@@ -13,7 +13,7 @@ export default function UnauthorizedPage() {
       </p>
       <div className="flex flex-wrap justify-center gap-3">
         <Link to="/login" className="rounded-xl bg-oxblood px-6 py-3 text-sm font-medium text-parchment">
-          Sign In
+        Log In
         </Link>
         <Link to="/guest" className="rounded-xl border border-walnut/15 px-6 py-3 text-sm font-medium text-walnut">
           Live Availability

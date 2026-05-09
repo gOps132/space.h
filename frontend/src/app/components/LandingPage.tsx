@@ -68,8 +68,8 @@ export default function LandingPage() {
       <section className="bg-walnut/5 pb-24 pt-14 lg:pt-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-16 max-w-2xl text-center">
-            <h2 className="mb-6 text-4xl font-serif">How Space.h Works</h2>
-            <p className="text-walnut/60">A simple flow for fair reservations, check-ins, and check-outs.</p>
+            <h2 className="mb-6 text-4xl font-serif">Reserve a Space</h2>
+            <p className="text-walnut/60">Find an open seat, hold it, check in, and release it when you leave.</p>
           </div>
 
           <div className="relative grid grid-cols-1 gap-8 md:grid-cols-4">
@@ -92,7 +92,7 @@ export default function LandingPage() {
               <RuleItem title="Missed Checkout Penalty" desc="Forgotten check-outs can trigger a 24-hour booking hold." />
             </div>
             <Link to="/about" className="inline-flex font-medium text-oxblood underline underline-offset-4 transition-colors hover:text-walnut">
-              Read Full Library Access Policy
+              View Library Access Rules
             </Link>
           </div>
 
@@ -103,7 +103,7 @@ export default function LandingPage() {
             </div>
             <div className="space-y-8">
               <FAQItem q="Can I book for a friend?" a="No. Reservations are tied to individual university accounts for occupancy tracking." />
-              <FAQItem q="What if a seat is occupied but shows available?" a="Report it from the student dashboard so library staff can investigate." />
+              <FAQItem q="What if an open seat is taken?" a="Report the mismatch from your student account so library staff can check the space." />
               <FAQItem q="Do guests need an account?" a="Guests can view live occupancy but cannot reserve spaces." />
             </div>
           </div>

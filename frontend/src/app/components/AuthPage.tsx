@@ -32,7 +32,7 @@ export default function AuthPage() {
         setError(caught.message);
         setFieldError(caught.fieldErrors?.universityId ?? "");
       } else {
-        setError("Sign-in failed.");
+        setError("Log in failed.");
       }
     } finally {
       setIsSubmitting(false);
@@ -44,10 +44,10 @@ export default function AuthPage() {
       <section className="flex min-h-[520px] flex-col justify-center">
         <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-oxblood">{isSignup ? "Request Access" : "Welcome Back"}</p>
         <h1 className="mb-6 max-w-2xl text-5xl font-serif leading-tight text-walnut text-balance">
-          {isSignup ? "Join the library space system." : "Return to your reservation desk."}
+          {isSignup ? "Request library access." : "Return to your reservation desk."}
         </h1>
         <p className="max-w-xl text-lg leading-relaxed text-walnut/65">
-          {isSignup ? "Access requests still route through library operations." : "Use your university ID to enter the live reservation workflow."}
+          {isSignup ? "Bring your university ID to the library desk so staff can create your account." : "Use your university ID to reserve spaces, check in, and manage bookings."}
         </p>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
@@ -60,7 +60,7 @@ export default function AuthPage() {
       <aside className="academic-border premium-shadow h-fit rounded-lg bg-card p-8">
         <h2 className="mb-2 text-2xl font-serif">{isSignup ? "Access Request" : "Log In"}</h2>
         <p id="auth-demo-note" className="mb-8 text-sm text-walnut/60">
-          {isSignup ? "Ask library operations to create your account." : "Demo users are seeded by the PHP backend for local testing."}
+          {isSignup ? "Online requests are closed for now. Library staff can help in person." : "Sign in with the university ID and password issued by the library."}
         </p>
         <form className="space-y-4" aria-describedby="auth-demo-note auth-error" onSubmit={handleSubmit}>
           <label className="block space-y-2">
@@ -96,7 +96,7 @@ export default function AuthPage() {
             className="w-full rounded-lg border border-walnut/10 bg-oxblood py-3 font-medium text-parchment transition-colors hover:bg-oxblood/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-walnut/45"
             disabled={isSignup || isSubmitting}
           >
-            {isSignup ? "Access Requests Disabled" : isSubmitting ? "Signing In..." : "Sign In"}
+            {isSignup ? "Request Access In Person" : isSubmitting ? "Logging In..." : "Log In"}
           </button>
         </form>
         <p className="mt-6 text-sm text-walnut/60">
