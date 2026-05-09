@@ -13,7 +13,16 @@ import {
   type ReservationTransaction,
   type StudyResource,
 } from "../data/enhancedMockData";
-import { ApiError, clearSession, getAttendanceLogs, getDashboard, getReservations, getResources } from "../api/client";
+import {
+  ApiError,
+  clearSession,
+  createResource,
+  getAttendanceLogs,
+  getDashboard,
+  getReservations,
+  getResources,
+  updateResourceStatus,
+} from "../api/client";
 
 export default function EnhancedAdminDashboard() {
   const [resources, setResources] = useState<StudyResource[]>(enhancedResources);
@@ -23,28 +32,34 @@ export default function EnhancedAdminDashboard() {
   const [syncState, setSyncState] = useState<"live" | "fallback">("fallback");
   const [query, setQuery] = useState("");
 
-  useEffect(() => {
-    Promise.all([getResources(), getReservations(), getAttendanceLogs(), getDashboard()])
-      .then(([nextResources, nextReservations, nextAttendanceLogs, nextDashboard]) => {
-        setResources(nextResources.length > 0 ? nextResources : enhancedResources);
-        setReservations(nextReservations);
-        setAttendanceLogs(nextAttendanceLogs);
-        setDashboard(nextDashboard);
-        setSyncState("live");
-      })
-      .catch((caught) => {
-        if (caught instanceof ApiError && (caught.status === 401 || caught.status === 403)) {
-          clearSession();
-          window.location.assign("/login?redirect=/admin");
-          return;
-        }
+  const refresh = async () => {
+    const [nextResources, nextReservations, nextAttendanceLogs, nextDashboard] = await Promise.all([
+      getResources(),
+      getReservations(),
+      getAttendanceLogs(),
+      getDashboard(),
+    ]);
+    setResources(nextResources.length > 0 ? nextResources : enhancedResources);
+    setReservations(nextReservations);
+    setAttendanceLogs(nextAttendanceLogs);
+    setDashboard(nextDashboard);
+    setSyncState("live");
+  };
 
-        setResources(enhancedResources);
-        setReservations(enhancedReservations);
-        setAttendanceLogs(enhancedAttendanceLogs);
-        setDashboard(dashboardData);
-        setSyncState("fallback");
-      });
+  useEffect(() => {
+    refresh().catch((caught) => {
+      if (caught instanceof ApiError && (caught.status === 401 || caught.status === 403)) {
+        clearSession();
+        window.location.assign("/login?redirect=/admin");
+        return;
+      }
+
+      setResources(enhancedResources);
+      setReservations(enhancedReservations);
+      setAttendanceLogs(enhancedAttendanceLogs);
+      setDashboard(dashboardData);
+      setSyncState("fallback");
+    });
   }, []);
 
   const metrics = useMemo(() => {
@@ -67,24 +82,31 @@ export default function EnhancedAdminDashboard() {
     return haystack.includes(query.toLowerCase());
   });
 
-  const updateStatus = (resourceId: string, status: StudyResource["current_status"]) => {
-    setResources((current) => current.map((resource) => (resource.resource_id === resourceId ? { ...resource, current_status: status } : resource)));
-    toast.success(`Resource marked ${status}.`);
+  const updateStatus = async (resourceId: string, status: StudyResource["current_status"]) => {
+    try {
+      await updateResourceStatus(resourceId, status);
+      await refresh();
+      toast.success(`Resource marked ${status}.`);
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : "Status update failed.");
+    }
   };
 
-  const addSampleResource = () => {
+  const addSampleResource = async () => {
     const nextNumber = resources.length + 1;
-    const newResource: StudyResource = {
-      resource_id: `SR${String(nextNumber).padStart(3, "0")}`,
-      resource_name: `Floor 2 - Desk ${nextNumber}`,
-      resource_type: "Individual Seat",
-      zone_location: "Collaborative Zone",
-      floor: 2,
-      current_status: "Available",
-      has_power_outlet: true,
-    };
-    setResources((current) => [...current, newResource]);
-    toast.success("Sample resource added.");
+    try {
+      await createResource({
+        resourceName: `Floor 2 - Desk ${nextNumber}`,
+        resourceType: "Individual Seat",
+        zoneLocation: "Collaborative Zone",
+        floor: 2,
+        hasPowerOutlet: true,
+      });
+      await refresh();
+      toast.success("Resource added.");
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : "Resource creation failed.");
+    }
   };
 
   const exportData = () => {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Filter, MapPin, Search, Users, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -6,17 +6,29 @@ import {
   enhancedAttendanceLogs,
   enhancedReservations,
   enhancedResources,
-  enhancedUsers,
   type AttendanceLogTransaction,
   type ReservationTransaction,
   type StudyResource,
 } from "../data/enhancedMockData";
+import {
+  ApiError,
+  cancelReservation,
+  checkInReservation,
+  checkOutReservation,
+  createReservation,
+  currentUser as fetchCurrentUser,
+  getAttendanceLogs,
+  getReservations,
+  getResources,
+  type CurrentUser,
+} from "../api/client";
 
 export default function StudentDashboard() {
-  const currentUser = enhancedUsers.find((user) => user.role === "Student") ?? enhancedUsers[0];
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [resources, setResources] = useState<StudyResource[]>(enhancedResources);
   const [reservations, setReservations] = useState<ReservationTransaction[]>(enhancedReservations);
   const [attendanceLogs, setAttendanceLogs] = useState<AttendanceLogTransaction[]>(enhancedAttendanceLogs);
+  const [isLoading, setIsLoading] = useState(true);
   const [filterFloor, setFilterFloor] = useState("all");
   const [filterZone, setFilterZone] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -26,22 +38,43 @@ export default function StudentDashboard() {
   const [endTime, setEndTime] = useState("");
   const [coBookers, setCoBookers] = useState("");
 
+  const refresh = async () => {
+    const [user, nextResources, nextReservations, nextAttendanceLogs] = await Promise.all([
+      fetchCurrentUser(),
+      getResources(),
+      getReservations(),
+      getAttendanceLogs(),
+    ]);
+    setCurrentUser(user);
+    setResources(nextResources.length > 0 ? nextResources : enhancedResources);
+    setReservations(nextReservations);
+    setAttendanceLogs(nextAttendanceLogs);
+  };
+
+  useEffect(() => {
+    refresh()
+      .catch(() => {
+        toast.error("Live reservation data unavailable. Showing local fallback.");
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
   const activeReservation = reservations.find(
     (reservation) =>
-      reservation.user_id === currentUser.user_id &&
+      reservation.user_id === currentUser?.userId &&
       (reservation.booking_status === "Pending" || reservation.booking_status === "Active")
   );
 
   const activeCheckIn = attendanceLogs.find((log) => {
     const reservation = reservations.find((item) => item.reservation_id === log.reservation_id);
-    return reservation?.user_id === currentUser.user_id && log.actual_check_out === null;
+    return reservation?.user_id === currentUser?.userId && log.actual_check_out === null;
   });
 
   const activeResource = activeReservation
     ? resources.find((resource) => resource.resource_id === activeReservation.resource_id)
     : null;
 
-  const isBanned = currentUser.is_banned_until ? new Date(currentUser.is_banned_until) > new Date() : false;
+  const isBanned = currentUser?.bannedUntil ? new Date(currentUser.bannedUntil) > new Date() : false;
 
   const zones = Array.from(new Set(resources.map((resource) => resource.zone_location)));
   const floors = Array.from(new Set(resources.map((resource) => resource.floor))).sort();
@@ -61,7 +94,7 @@ export default function StudentDashboard() {
 
   const reservableResources = resources.filter((resource) => resource.current_status === "Available");
 
-  const handleBooking = (resourceId = selectedResource) => {
+  const handleBooking = async (resourceId = selectedResource) => {
     if (activeReservation) {
       toast.error("You already have an active reservation. Only one booking at a time is allowed.");
       return;
@@ -118,70 +151,51 @@ export default function StudentDashboard() {
       return;
     }
 
-    const newReservation: ReservationTransaction = {
-      reservation_id: `RES${String(reservations.length + 1).padStart(3, "0")}`,
-      user_id: currentUser.user_id,
-      resource_id: resourceId,
-      start_time: start.toISOString(),
-      end_time: end.toISOString(),
-      booking_status: "Pending",
-      created_at: new Date().toISOString(),
-      co_bookers: coBookerIds.length > 0 ? coBookerIds : undefined,
-    };
-
-    setReservations((current) => [...current, newReservation]);
-    setResources((current) =>
-      current.map((item) => (item.resource_id === resourceId ? { ...item, current_status: "Reserved" } : item))
-    );
-    setSelectedResource("");
-    setStartTime("");
-    setEndTime("");
-    setCoBookers("");
-    toast.success("Reservation created successfully.");
+    try {
+      await createReservation({
+        resourceId,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+        coBookers: coBookerIds,
+      });
+      await refresh();
+      setSelectedResource("");
+      setStartTime("");
+      setEndTime("");
+      setCoBookers("");
+      toast.success("Reservation created successfully.");
+    } catch (caught) {
+      toast.error(errorMessage(caught, "Reservation failed."));
+    }
   };
 
-  const handleCheckIn = () => {
+  const handleCheckIn = async () => {
     if (!activeReservation) return;
 
-    const newLog: AttendanceLogTransaction = {
-      log_id: `LOG${String(attendanceLogs.length + 1).padStart(3, "0")}`,
-      reservation_id: activeReservation.reservation_id,
-      actual_check_in: new Date().toISOString(),
-      actual_check_out: null,
-    };
-
-    setAttendanceLogs((current) => [...current, newLog]);
-    setReservations((current) =>
-      current.map((reservation) =>
-        reservation.reservation_id === activeReservation.reservation_id ? { ...reservation, booking_status: "Active" } : reservation
-      )
-    );
-    setResources((current) =>
-      current.map((resource) =>
-        resource.resource_id === activeReservation.resource_id ? { ...resource, current_status: "Occupied" } : resource
-      )
-    );
-    toast.success("Checked in successfully.");
+    try {
+      await checkInReservation(activeReservation.reservation_id);
+      await refresh();
+      toast.success("Checked in successfully.");
+    } catch (caught) {
+      toast.error(errorMessage(caught, "Check-in failed."));
+    }
   };
 
-  const handleCheckOut = () => {
+  const handleCheckOut = async () => {
     if (!activeCheckIn) return;
     const reservation = reservations.find((item) => item.reservation_id === activeCheckIn.reservation_id);
     if (!reservation) return;
 
-    setAttendanceLogs((current) =>
-      current.map((log) => (log.log_id === activeCheckIn.log_id ? { ...log, actual_check_out: new Date().toISOString() } : log))
-    );
-    setReservations((current) =>
-      current.map((item) => (item.reservation_id === reservation.reservation_id ? { ...item, booking_status: "Completed" } : item))
-    );
-    setResources((current) =>
-      current.map((resource) => (resource.resource_id === reservation.resource_id ? { ...resource, current_status: "Available" } : resource))
-    );
-    toast.success("Checked out successfully.");
+    try {
+      await checkOutReservation(reservation.reservation_id);
+      await refresh();
+      toast.success("Checked out successfully.");
+    } catch (caught) {
+      toast.error(errorMessage(caught, "Check-out failed."));
+    }
   };
 
-  const handleCancelReservation = () => {
+  const handleCancelReservation = async () => {
     if (!activeReservation) return;
     const minutesUntilStart = (new Date(activeReservation.start_time).getTime() - Date.now()) / (1000 * 60);
 
@@ -190,28 +204,28 @@ export default function StudentDashboard() {
       return;
     }
 
-    setReservations((current) =>
-      current.map((reservation) =>
-        reservation.reservation_id === activeReservation.reservation_id ? { ...reservation, booking_status: "Cancelled" } : reservation
-      )
-    );
-    setResources((current) =>
-      current.map((resource) =>
-        resource.resource_id === activeReservation.resource_id ? { ...resource, current_status: "Available" } : resource
-      )
-    );
-    toast.success("Reservation cancelled.");
+    try {
+      await cancelReservation(activeReservation.reservation_id);
+      await refresh();
+      toast.success("Reservation cancelled.");
+    } catch (caught) {
+      toast.error(errorMessage(caught, "Cancellation failed."));
+    }
   };
+
+  if (isLoading || currentUser === null) {
+    return <div className="mx-auto max-w-7xl px-4 py-12 text-sm italic text-walnut/50 sm:px-6 lg:px-8">Loading live reservation desk...</div>;
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-4 py-12 sm:px-6 lg:px-8">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div>
           <h1 className="mb-2 text-4xl font-serif">Student Dashboard</h1>
-          <p className="font-serif text-lg italic leading-none text-walnut/60">Welcome back, {currentUser.full_name}.</p>
+          <p className="font-serif text-lg italic leading-none text-walnut/60">Welcome back, {currentUser.fullName}.</p>
         </div>
         <div className="academic-border flex gap-4 rounded-2xl bg-walnut/5 p-4">
-          <StatusMetric label="Account Status" value={currentUser.account_status} tone="moss" />
+          <StatusMetric label="Account Status" value={currentUser.accountStatus} tone="moss" />
           <div className="w-px bg-walnut/10" />
           <StatusMetric label="Booking Hold" value={isBanned ? "Active" : "None"} tone={isBanned ? "oxblood" : "walnut"} />
         </div>
@@ -470,4 +484,8 @@ function formatRange(start: string, end: string) {
     minute: "2-digit",
   });
   return `${formatter.format(new Date(start))} - ${formatter.format(new Date(end))}`;
+}
+
+function errorMessage(caught: unknown, fallback: string) {
+  return caught instanceof ApiError ? caught.message : fallback;
 }

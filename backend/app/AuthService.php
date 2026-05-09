@@ -73,7 +73,7 @@ final class AuthService
     private function findUser(string $universityId): ?array
     {
         $statement = $this->pdo->prepare(
-            'select university_id, full_name, email, password_hash, role, account_status from app_user where university_id = ? limit 1'
+            'select id, university_id, full_name, email, password_hash, role, account_status, banned_until from app_user where university_id = ? limit 1'
         );
         $statement->execute([$universityId]);
         $user = $statement->fetch();
@@ -84,11 +84,13 @@ final class AuthService
     private static function publicUser(array $user): array
     {
         return [
+            'userId' => 'U' . str_pad((string) $user['id'], 3, '0', STR_PAD_LEFT),
             'universityId' => $user['university_id'],
             'fullName' => $user['full_name'],
             'email' => $user['email'],
             'role' => $user['role'],
             'accountStatus' => $user['account_status'],
+            'bannedUntil' => $user['banned_until'],
         ];
     }
 }
