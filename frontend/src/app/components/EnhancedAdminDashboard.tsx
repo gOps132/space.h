@@ -226,39 +226,39 @@ export default function EnhancedAdminDashboard() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-12 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+    <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
+      <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
           <h1 className="mb-2 text-4xl font-serif">Library Operations</h1>
           <p className="font-serif text-lg italic leading-none text-walnut/60">Monitor spaces, reservations, and maintenance.</p>
           <p className="mt-3 text-sm text-walnut/45">{syncState === "live" ? "Showing live data" : "Showing latest saved data"}</p>
         </div>
-        <div className="flex flex-wrap gap-4">
-          <button type="button" onClick={exportData} className="flex items-center gap-2 rounded-xl bg-walnut px-6 py-3 text-sm font-medium text-parchment transition-colors hover:bg-walnut/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
+          <button type="button" onClick={exportData} className="flex items-center justify-center gap-2 rounded-xl bg-walnut px-5 py-3 text-sm font-medium text-parchment transition-colors hover:bg-walnut/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
             <Download className="h-4 w-4" aria-hidden="true" />
             Export Data
           </button>
-          <button type="button" onClick={openCreateResource} className="flex items-center gap-2 rounded-xl bg-oxblood px-6 py-3 text-sm font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
+          <button type="button" onClick={openCreateResource} className="flex items-center justify-center gap-2 rounded-xl bg-oxblood px-5 py-3 text-sm font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
             <Plus className="h-4 w-4" aria-hidden="true" />
             Add Resource
           </button>
         </div>
       </div>
 
-      <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <AdminStatCard label="Total Spaces" value={resources.length} delta={`${attendanceLogs.length} active logs`} icon={Settings} />
         <AdminStatCard label="Current Occupancy" value={`${metrics.occupancyRate}%`} delta={`${metrics.pendingReservations} pending`} icon={Users} />
         <AdminStatCard label="Maintenance" value={metrics.maintenanceAlerts} delta="Unavailable for booking" icon={Wrench} warning />
         <AdminStatCard label="No-Shows" value={metrics.noShows} delta="Booking holds" icon={AlertCircle} warning={metrics.noShows > 0} />
       </section>
 
-      <section className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div className="academic-border premium-shadow rounded-2xl bg-parchment p-8">
-          <div className="mb-6">
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+        <div className="academic-border premium-shadow rounded-2xl bg-parchment p-5 sm:p-6">
+          <div className="mb-4">
             <h2 className="text-2xl font-serif">Traffic Flow</h2>
             <p className="text-sm text-walnut/60">Visits by hour, used to plan staffing and room turnover.</p>
           </div>
-          <div className="h-80">
+          <div className="h-64 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dashboard.peak_time_data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(45,36,30,0.12)" vertical={false} />
@@ -275,12 +275,12 @@ export default function EnhancedAdminDashboard() {
           </div>
         </div>
 
-        <div className="academic-border premium-shadow rounded-2xl bg-walnut p-8 text-parchment/65">
-          <div className="mb-6">
+        <div className="academic-border premium-shadow rounded-2xl bg-walnut p-5 text-parchment/65 sm:p-6">
+          <div className="mb-4">
             <h2 className="text-2xl font-serif text-parchment">Occupancy by Zone</h2>
             <p className="text-sm">Distribution across active library spaces.</p>
           </div>
-          <div className="h-80">
+          <div className="h-64 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={metrics.zoneData} dataKey="value" nameKey="name" innerRadius={64} outerRadius={102} paddingAngle={6}>
@@ -300,7 +300,7 @@ export default function EnhancedAdminDashboard() {
       </section>
 
       <section className="academic-border premium-shadow overflow-hidden rounded-2xl bg-parchment">
-        <div className="flex flex-col items-center justify-between gap-6 border-b border-walnut/10 p-8 md:flex-row">
+        <div className="flex flex-col items-start justify-between gap-5 border-b border-walnut/10 p-5 md:flex-row md:items-center md:p-6">
           <h2 className="text-2xl font-serif">Space Inventory</h2>
           <div className="relative w-full md:w-[340px]">
             <label htmlFor="admin-resource-search" className="sr-only">Filter resources</label>
@@ -317,8 +317,20 @@ export default function EnhancedAdminDashboard() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
+        <div className="divide-y divide-walnut/5 md:hidden">
+          {filteredResources.map((resource) => (
+            <ResourceMobileCard
+              key={resource.resource_id}
+              resource={resource}
+              onDelete={() => setDeletingResource(resource)}
+              onEdit={() => openEditResource(resource)}
+              onStatusChange={(status) => updateStatus(resource.resource_id, status)}
+            />
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[900px] border-collapse text-left">
             <thead>
               <tr className="border-b border-walnut/10 bg-walnut/5">
                 <TableHead>Res. ID</TableHead>
@@ -333,25 +345,25 @@ export default function EnhancedAdminDashboard() {
             <tbody className="divide-y divide-walnut/5">
               {filteredResources.map((resource) => (
                 <tr key={resource.resource_id} className="transition-colors hover:bg-walnut/[0.02]">
-                  <td className="p-6 font-mono text-sm text-walnut/60">{resource.resource_id}</td>
-                  <td className="p-6"><span className="font-serif text-lg text-walnut">{resource.resource_name}</span></td>
-                  <td className="p-6">
+                  <td className="p-5 font-mono text-sm text-walnut/60">{resource.resource_id}</td>
+                  <td className="p-5"><span className="font-serif text-lg text-walnut">{resource.resource_name}</span></td>
+                  <td className="p-5">
                     <span className={`rounded border px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${resource.resource_type === "Group Study Room" ? "border-candlelight text-walnut bg-candlelight/10" : "border-walnut/20 text-walnut/60"}`}>
                       {resource.resource_type}
                     </span>
                   </td>
-                  <td className="p-6 text-sm text-walnut/60">
+                  <td className="p-5 text-sm text-walnut/60">
                     <span className="font-mono tabular-nums">{resource.min_participants ?? 1}</span> min
                     {resource.is_faculty_exclusive && <span className="ml-2 rounded bg-oxblood/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-oxblood">Faculty</span>}
                   </td>
-                  <td className="space-y-1 p-6">
+                  <td className="space-y-1 p-5">
                     <p className="text-sm font-medium text-walnut">Level {resource.floor}</p>
                     <p className="text-xs text-walnut/40">{resource.zone_location}</p>
                   </td>
-                  <td className="p-6">
+                  <td className="p-5">
                     <StatusSelect value={resource.current_status} onChange={(status) => updateStatus(resource.resource_id, status)} />
                   </td>
-                  <td className="p-6 text-right">
+                  <td className="p-5 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button type="button" aria-label={`Open actions for ${resource.resource_name}`} className="rounded-lg p-2 text-walnut/35 transition-colors hover:bg-oxblood/5 hover:text-oxblood focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20">
@@ -376,7 +388,7 @@ export default function EnhancedAdminDashboard() {
           </table>
         </div>
 
-        <div className="flex items-center justify-between border-t border-walnut/10 bg-walnut/5 p-6 text-xs text-walnut/45">
+        <div className="flex items-center justify-between border-t border-walnut/10 bg-walnut/5 p-5 text-xs text-walnut/45">
           <p>Showing {filteredResources.length} of {resources.length} library resources</p>
           <BarChart3 className="h-4 w-4" aria-hidden="true" />
         </div>
@@ -416,21 +428,74 @@ function resourceToForm(resource: StudyResource): ResourceFormState {
 
 function AdminStatCard({ label, value, delta, icon: Icon, warning = false }: { label: string; value: string | number; delta: string; icon: typeof Settings; warning?: boolean }) {
   return (
-    <div className="academic-border rounded-2xl bg-parchment p-6">
-      <div className="mb-4 flex items-start justify-between">
-        <div className="rounded-xl bg-walnut/5 p-3">
-          <Icon className={`h-5 w-5 ${warning ? "text-oxblood" : "text-walnut/60"}`} aria-hidden="true" />
+    <div className="academic-border rounded-xl bg-parchment p-4 sm:p-5">
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <div className="rounded-lg bg-walnut/5 p-2.5">
+          <Icon className={`h-4 w-4 ${warning ? "text-oxblood" : "text-walnut/60"}`} aria-hidden="true" />
         </div>
-        <span className="rounded bg-walnut/10 px-2 py-0.5 text-[10px] font-bold text-walnut/45">{delta}</span>
+        <span className="max-w-[8.5rem] rounded bg-walnut/10 px-2 py-0.5 text-right text-[10px] font-bold leading-tight text-walnut/45">{delta}</span>
       </div>
       <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-walnut/40">{label}</p>
-      <p className={`font-serif text-3xl tabular-nums ${warning ? "text-oxblood" : "text-walnut"}`}>{value}</p>
+      <p className={`font-serif text-2xl tabular-nums sm:text-3xl ${warning ? "text-oxblood" : "text-walnut"}`}>{value}</p>
     </div>
   );
 }
 
 function TableHead({ children, align = "left" }: { children: ReactNode; align?: "left" | "right" }) {
-  return <th className={`p-6 ${align === "right" ? "text-right" : "text-left"} text-[10px] font-bold uppercase tracking-widest text-walnut/40`}>{children}</th>;
+  return <th className={`p-5 ${align === "right" ? "text-right" : "text-left"} text-[10px] font-bold uppercase tracking-widest text-walnut/40`}>{children}</th>;
+}
+
+function ResourceMobileCard({
+  onDelete,
+  onEdit,
+  onStatusChange,
+  resource,
+}: {
+  onDelete: () => void;
+  onEdit: () => void;
+  onStatusChange: (status: StudyResource["current_status"]) => void;
+  resource: StudyResource;
+}) {
+  return (
+    <article className="space-y-4 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-mono text-xs text-walnut/45">{resource.resource_id}</p>
+          <h3 className="mt-1 text-xl font-serif text-walnut">{resource.resource_name}</h3>
+          <p className="mt-1 text-sm text-walnut/50">Level {resource.floor}, {resource.zone_location}</p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label={`Open actions for ${resource.resource_name}`} className="rounded-lg p-2 text-walnut/35 transition-colors hover:bg-oxblood/5 hover:text-oxblood focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20">
+              <MoreVertical className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="border-walnut/10 bg-parchment text-walnut">
+            <DropdownMenuItem onSelect={onEdit} className="cursor-pointer focus:bg-walnut/5">
+              <Pencil className="h-4 w-4 text-walnut/50" aria-hidden="true" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onDelete} variant="destructive" className="cursor-pointer focus:bg-oxblood/10">
+              <Trash2 className="h-4 w-4 text-oxblood" aria-hidden="true" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <span className={`rounded border px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${resource.resource_type === "Group Study Room" ? "border-candlelight text-walnut bg-candlelight/10" : "border-walnut/20 text-walnut/60"}`}>
+          {resource.resource_type}
+        </span>
+        <span className="rounded border border-walnut/20 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-walnut/60">
+          {resource.min_participants ?? 1} min
+        </span>
+        {resource.is_faculty_exclusive && <span className="rounded bg-oxblood/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-oxblood">Faculty</span>}
+      </div>
+
+      <StatusSelect value={resource.current_status} onChange={onStatusChange} />
+    </article>
+  );
 }
 
 function StatusSelect({ value, onChange }: { value: StudyResource["current_status"]; onChange: (status: StudyResource["current_status"]) => void }) {
