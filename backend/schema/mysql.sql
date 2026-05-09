@@ -20,6 +20,7 @@ create table if not exists study_resource (
     status varchar(40) not null,
     has_power_outlet boolean not null default false,
     capacity int null,
+    min_participants int not null default 1,
     faculty_exclusive boolean not null default false,
     created_at timestamp not null default current_timestamp,
     updated_at timestamp not null default current_timestamp on update current_timestamp

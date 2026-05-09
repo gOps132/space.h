@@ -29,14 +29,14 @@ final class SeedData
         }
 
         $resources = [
-            ['Floor 1 - Desk 04', 'INDIVIDUAL_SEAT', 'Commons', 1, 'AVAILABLE', 1, null, 0],
-            ['Floor 2 - Desk 42', 'INDIVIDUAL_SEAT', 'Silent Zone', 2, 'RESERVED', 1, null, 0],
-            ['Consultation Room A', 'CONSULTATION_ROOM', 'Faculty Wing', 3, 'AVAILABLE', 1, 6, 1],
-            ['Study Room 3B', 'GROUP_ROOM', 'Collaborative Zone', 3, 'OCCUPIED', 1, 8, 0],
+            ['Floor 1 - Desk 04', 'INDIVIDUAL_SEAT', 'Commons', 1, 'AVAILABLE', 1, null, 1, 0],
+            ['Floor 2 - Desk 42', 'INDIVIDUAL_SEAT', 'Silent Zone', 2, 'RESERVED', 1, null, 1, 0],
+            ['Consultation Room A', 'CONSULTATION_ROOM', 'Faculty Wing', 3, 'AVAILABLE', 1, 6, 1, 1],
+            ['Study Room 3B', 'GROUP_ROOM', 'Collaborative Zone', 3, 'OCCUPIED', 1, 8, 3, 0],
         ];
 
         $insertResource = $pdo->prepare(
-            'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?)'
+            'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         foreach ($resources as $resource) {
             $insertResource->execute($resource);

@@ -54,8 +54,10 @@ final class ReservationService
                 return $this->rollback(self::error('Individual seats can only be booked for a maximum of 4 hours.', 422));
             }
 
-            if ($resource['resource_type'] === 'GROUP_ROOM' && !(bool) $resource['faculty_exclusive'] && $dbUser['role'] === 'STUDENT' && count($coBookers) < 2) {
-                return $this->rollback(self::error('Group Study Rooms require at least 3 participants.', 422));
+            $participants = 1 + count($coBookers);
+            $minimumParticipants = max(1, (int) $resource['min_participants']);
+            if ($dbUser['role'] === 'STUDENT' && $participants < $minimumParticipants) {
+                return $this->rollback(self::error("This room requires at least {$minimumParticipants} participants.", 422));
             }
 
             if ($this->hasResourceConflict($resourceId, $start, $end)) {
@@ -194,7 +196,7 @@ final class ReservationService
 
     private function resource(int $id): ?array
     {
-        $statement = $this->pdo->prepare('select id, resource_type, status, faculty_exclusive from study_resource where id = ? limit 1 for update');
+        $statement = $this->pdo->prepare('select id, resource_type, status, min_participants, faculty_exclusive from study_resource where id = ? limit 1 for update');
         $statement->execute([$id]);
         $resource = $statement->fetch();
 

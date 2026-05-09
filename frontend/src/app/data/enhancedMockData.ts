@@ -12,12 +12,13 @@ export interface User {
 export interface StudyResource {
   resource_id: string;
   resource_name: string;
-  resource_type: 'Individual Seat' | 'Group Study Room';
+  resource_type: 'Individual Seat' | 'Group Study Room' | 'Consultation Room';
   zone_location: string;
   current_status: 'Available' | 'Reserved' | 'Occupied' | 'Under Maintenance';
   floor: number;
   has_power_outlet?: boolean;
   capacity?: number; // For group study rooms
+  min_participants?: number;
   is_faculty_exclusive?: boolean;
 }
 
@@ -83,13 +84,13 @@ export const enhancedResources: StudyResource[] = [
   { resource_id: 'SR012', resource_name: 'Floor 3 - Station 3', resource_type: 'Individual Seat', zone_location: 'Computer Lab', floor: 3, current_status: 'Available', has_power_outlet: true },
   
   // Group Study Rooms
-  { resource_id: 'SR013', resource_name: 'Group Study Room A', resource_type: 'Group Study Room', zone_location: 'Floor 2', floor: 2, current_status: 'Available', capacity: 6, is_faculty_exclusive: false },
-  { resource_id: 'SR014', resource_name: 'Group Study Room B', resource_type: 'Group Study Room', zone_location: 'Floor 2', floor: 2, current_status: 'Occupied', capacity: 8, is_faculty_exclusive: false },
-  { resource_id: 'SR015', resource_name: 'Group Study Room C', resource_type: 'Group Study Room', zone_location: 'Floor 3', floor: 3, current_status: 'Available', capacity: 4, is_faculty_exclusive: false },
+  { resource_id: 'SR013', resource_name: 'Group Study Room A', resource_type: 'Group Study Room', zone_location: 'Floor 2', floor: 2, current_status: 'Available', capacity: 6, min_participants: 3, is_faculty_exclusive: false },
+  { resource_id: 'SR014', resource_name: 'Group Study Room B', resource_type: 'Group Study Room', zone_location: 'Floor 2', floor: 2, current_status: 'Occupied', capacity: 8, min_participants: 3, is_faculty_exclusive: false },
+  { resource_id: 'SR015', resource_name: 'Group Study Room C', resource_type: 'Group Study Room', zone_location: 'Floor 3', floor: 3, current_status: 'Available', capacity: 4, min_participants: 3, is_faculty_exclusive: false },
   
   // Faculty Exclusive Rooms
-  { resource_id: 'SR016', resource_name: 'Faculty Meeting Room 1', resource_type: 'Group Study Room', zone_location: 'Floor 3', floor: 3, current_status: 'Available', capacity: 10, is_faculty_exclusive: true },
-  { resource_id: 'SR017', resource_name: 'Faculty Consultation Room', resource_type: 'Group Study Room', zone_location: 'Floor 3', floor: 3, current_status: 'Reserved', capacity: 6, is_faculty_exclusive: true },
+  { resource_id: 'SR016', resource_name: 'Faculty Meeting Room 1', resource_type: 'Group Study Room', zone_location: 'Floor 3', floor: 3, current_status: 'Available', capacity: 10, min_participants: 1, is_faculty_exclusive: true },
+  { resource_id: 'SR017', resource_name: 'Faculty Consultation Room', resource_type: 'Consultation Room', zone_location: 'Floor 3', floor: 3, current_status: 'Reserved', capacity: 6, min_participants: 1, is_faculty_exclusive: true },
   
   // Under Maintenance
   { resource_id: 'SR018', resource_name: 'Floor 1 - Desk 6', resource_type: 'Individual Seat', zone_location: 'Silent Zone', floor: 1, current_status: 'Under Maintenance', has_power_outlet: true },

@@ -15,7 +15,7 @@ final class DataApi
     public function resources(): array
     {
         $rows = $this->pdo
-            ->query('select id, resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, faculty_exclusive from study_resource order by floor, id')
+            ->query('select id, resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive from study_resource order by floor, id')
             ->fetchAll();
 
         return array_map(fn (array $row): array => [
@@ -27,6 +27,7 @@ final class DataApi
             'current_status' => $this->resourceStatus((string) $row['status']),
             'has_power_outlet' => (bool) $row['has_power_outlet'],
             'capacity' => $row['capacity'] === null ? null : (int) $row['capacity'],
+            'min_participants' => (int) $row['min_participants'],
             'is_faculty_exclusive' => (bool) $row['faculty_exclusive'],
         ], $rows);
     }
@@ -106,6 +107,7 @@ final class DataApi
     {
         return match ($value) {
             'INDIVIDUAL_SEAT' => 'Individual Seat',
+            'CONSULTATION_ROOM' => 'Consultation Room',
             default => 'Group Study Room',
         };
     }

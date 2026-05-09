@@ -92,7 +92,7 @@ export default function StudentDashboard() {
     });
   }, [filterFloor, filterZone, powerOnly, resources, searchQuery]);
 
-  const reservableResources = resources.filter((resource) => resource.current_status === "Available");
+  const reservableResources = resources.filter((resource) => resource.current_status === "Available" && !isFacultyOnlyResource(resource));
 
   const handleBooking = async (resourceId = selectedResource) => {
     if (activeReservation) {
@@ -116,6 +116,11 @@ export default function StudentDashboard() {
       return;
     }
 
+    if (isFacultyOnlyResource(resource)) {
+      toast.error("Consultation and faculty-exclusive rooms require faculty access.");
+      return;
+    }
+
     const start = new Date(startTime);
     const end = new Date(endTime);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
@@ -132,8 +137,9 @@ export default function StudentDashboard() {
     }
 
     const coBookerIds = coBookers.split(",").map((id) => id.trim()).filter(Boolean);
-    if (resource.resource_type === "Group Study Room" && !resource.is_faculty_exclusive && coBookerIds.length < 2) {
-      toast.error("Group Study Rooms require at least 3 participants: you plus 2 others.");
+    const minimumParticipants = resource.min_participants ?? (resource.resource_type === "Group Study Room" ? 3 : 1);
+    if (coBookerIds.length + 1 < minimumParticipants) {
+      toast.error(`This room requires at least ${minimumParticipants} participants: you plus ${minimumParticipants - 1} others.`);
       return;
     }
 
@@ -336,7 +342,8 @@ export default function StudentDashboard() {
                 key={resource.resource_id}
                 resource={resource}
                 selected={selectedResource === resource.resource_id}
-                onSelect={() => setSelectedResource(resource.resource_id)}
+                unavailableReason={isFacultyOnlyResource(resource) ? "Faculty only" : undefined}
+                onSelect={() => setSelectedResource((current) => current === resource.resource_id ? "" : resource.resource_id)}
               />
             ))}
           </div>
@@ -358,7 +365,10 @@ export default function StudentDashboard() {
 
             <TextField id="student-start" label="Start Time" type="datetime-local" value={startTime} onChange={setStartTime} />
             <TextField id="student-end" label="End Time" type="datetime-local" value={endTime} onChange={setEndTime} />
-            <TextField id="co-bookers" label="Co-booker IDs" value={coBookers} onChange={setCoBookers} placeholder="U005, U009" />
+            <TextField id="co-bookers" label="Co-booker IDs" value={coBookers} onChange={setCoBookers} placeholder="24-0002-01, 24-0003-01" />
+            <p className="px-1 text-xs leading-relaxed text-walnut/50">
+              Co-booker IDs are university IDs for students joining a room. Room minimum comes from admin settings.
+            </p>
 
             <button type="button" onClick={() => handleBooking()} className="w-full rounded-xl bg-oxblood py-3 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
               Reserve Space
@@ -428,8 +438,8 @@ function TextField({ id, label, value, onChange, type = "text", placeholder }: {
   );
 }
 
-function SpaceCard({ resource, selected, onSelect }: { resource: StudyResource; selected: boolean; onSelect: () => void }) {
-  const isAvailable = resource.current_status === "Available";
+function SpaceCard({ resource, selected, unavailableReason, onSelect }: { resource: StudyResource; selected: boolean; unavailableReason?: string; onSelect: () => void }) {
+  const isAvailable = resource.current_status === "Available" && !unavailableReason;
 
   return (
     <article className={`academic-border rounded-2xl p-6 transition-shadow ${isAvailable ? "bg-parchment hover:premium-shadow" : "bg-walnut/5 opacity-75"} ${selected ? "ring-2 ring-oxblood/25" : ""}`}>
@@ -446,6 +456,8 @@ function SpaceCard({ resource, selected, onSelect }: { resource: StudyResource; 
       <div className="mb-6 flex flex-wrap gap-3 text-xs font-medium text-walnut/60">
         {resource.has_power_outlet && <span className="flex items-center gap-1.5 rounded-md bg-walnut/5 px-2 py-1"><Zap className="h-3.5 w-3.5 fill-candlelight text-candlelight" aria-hidden="true" /> Power Ready</span>}
         {resource.capacity && <span className="flex items-center gap-1.5 rounded-md bg-walnut/5 px-2 py-1"><Users className="h-3.5 w-3.5" aria-hidden="true" /> Fits {resource.capacity}</span>}
+        {resource.min_participants && resource.min_participants > 1 && <span className="flex items-center gap-1.5 rounded-md bg-walnut/5 px-2 py-1"><Users className="h-3.5 w-3.5" aria-hidden="true" /> Min {resource.min_participants}</span>}
+        {unavailableReason && <span className="rounded-md bg-oxblood/10 px-2 py-1 text-oxblood">{unavailableReason}</span>}
       </div>
 
       <div className="flex items-center justify-between border-t border-walnut/5 pt-6">
@@ -458,11 +470,15 @@ function SpaceCard({ resource, selected, onSelect }: { resource: StudyResource; 
             isAvailable ? "bg-walnut text-parchment hover:bg-oxblood" : "cursor-not-allowed bg-walnut/10 text-walnut/40"
           }`}
         >
-          {selected ? "Selected" : isAvailable ? "Select" : "Locked"}
+          {selected ? "Selected" : isAvailable ? "Select" : unavailableReason ?? "Locked"}
         </button>
       </div>
     </article>
   );
+}
+
+function isFacultyOnlyResource(resource: StudyResource) {
+  return Boolean(resource.is_faculty_exclusive) || resource.resource_type === "Consultation Room";
 }
 
 function StatusBadge({ status }: { status: StudyResource["current_status"] }) {
