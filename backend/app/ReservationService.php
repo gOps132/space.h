@@ -39,8 +39,8 @@ final class ReservationService
                 return $this->rollback(self::error('Account has an active booking hold.', 403));
             }
 
-            if ($resource['status'] !== 'AVAILABLE') {
-                return $this->rollback(self::error('That space is no longer available.', 409));
+            if ($resource['status'] === 'UNDER_MAINTENANCE') {
+                return $this->rollback(self::error('That space is under maintenance.', 409));
             }
 
             if ((bool) $resource['faculty_exclusive'] && !in_array($dbUser['role'], ['FACULTY', 'ADMIN'], true)) {
@@ -83,7 +83,9 @@ final class ReservationService
                 }
             }
 
-            $this->setResourceStatus($resourceId, 'RESERVED');
+            if ($resource['status'] === 'AVAILABLE') {
+                $this->setResourceStatus($resourceId, 'RESERVED');
+            }
             $this->pdo->commit();
 
             return ['status' => 201, 'body' => ['message' => 'Reservation created.', 'reservationId' => self::displayId($reservationId, 'RES')]];

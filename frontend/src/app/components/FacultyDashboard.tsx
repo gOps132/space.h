@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { BookOpen, Calendar, ChevronDown, Clock, Info, MapPin, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +16,15 @@ import {
   getResources,
   type CurrentUser,
 } from "../api/client";
+import {
+  getBlockingReservationsForResource,
+  isBlockingReservation,
+  isReservationSlotAvailable,
+  rangesOverlap,
+  ReservationTimePicker,
+  todayInputDate,
+  toDatetimeLocalInput,
+} from "./ReservationTimePicker";
 
 export default function FacultyDashboard() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -23,6 +32,8 @@ export default function FacultyDashboard() {
   const [reservations, setReservations] = useState<ReservationTransaction[]>(enhancedReservations);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState("");
+  const [bookingDate, setBookingDate] = useState(todayInputDate());
+  const [slotDurationMinutes, setSlotDurationMinutes] = useState(60);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -46,8 +57,28 @@ export default function FacultyDashboard() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const groupRooms = resources.filter((resource) => resource.resource_type === "Group Study Room");
+  const groupRooms = resources.filter((resource) => resource.resource_type === "Group Study Room" || resource.resource_type === "Consultation Room");
   const facultyReservations = reservations.filter((reservation) => reservation.user_id === currentUser?.userId);
+  const selectedRoomDetails = selectedRoom ? resources.find((resource) => resource.resource_id === selectedRoom) : undefined;
+  const selectedRoomReservations = useMemo(() => getBlockingReservationsForResource(reservations, selectedRoom, bookingDate), [bookingDate, reservations, selectedRoom]);
+
+  const handleTimelineSlotSelect = (slotStart: Date) => {
+    if (!selectedRoomDetails) {
+      toast.error("Choose a room before selecting a time.");
+      return;
+    }
+
+    const slotEnd = new Date(slotStart.getTime() + slotDurationMinutes * 60 * 1000);
+    const slotAvailable = isReservationSlotAvailable(slotStart, slotEnd, selectedRoomReservations);
+
+    if (!slotAvailable) {
+      toast.error("That time overlaps with an existing room reservation.");
+      return;
+    }
+
+    setStartTime(toDatetimeLocalInput(slotStart));
+    setEndTime(toDatetimeLocalInput(slotEnd));
+  };
 
   const handleBookRoom = async (roomId = selectedRoom) => {
     if (!roomId || !startTime || !endTime) {
@@ -63,18 +94,17 @@ export default function FacultyDashboard() {
     }
 
     const room = resources.find((resource) => resource.resource_id === roomId);
-    if (!room || room.current_status !== "Available") {
-      toast.error("That room is no longer available.");
+    if (!room || room.current_status === "Under Maintenance") {
+      toast.error("That room is under maintenance.");
       return;
     }
 
     const hasConflict = reservations.some((reservation) => {
-      if (reservation.resource_id !== roomId || reservation.booking_status === "Cancelled" || reservation.booking_status === "No-show") {
+      if (reservation.resource_id !== roomId || !isBlockingReservation(reservation)) {
         return false;
       }
-      const existingStart = new Date(reservation.start_time);
-      const existingEnd = new Date(reservation.end_time);
-      return start < existingEnd && end > existingStart;
+
+      return rangesOverlap(start, end, new Date(reservation.start_time), new Date(reservation.end_time));
     });
 
     if (hasConflict) {
@@ -157,11 +187,22 @@ export default function FacultyDashboard() {
             <div className="space-y-4">
               <SelectField label="Room" value={selectedRoom} onChange={setSelectedRoom}>
                 <option value="">Choose a room</option>
-                {groupRooms.filter((room) => room.current_status === "Available").map((room) => (
+                {groupRooms.filter((room) => room.current_status !== "Under Maintenance").map((room) => (
                   <option key={room.resource_id} value={room.resource_id}>{room.resource_name}</option>
                 ))}
               </SelectField>
               <TextField id="faculty-purpose" label="Purpose" value={purpose} onChange={setPurpose} placeholder="Department Meeting" />
+              <ReservationTimePicker
+                bookingDate={bookingDate}
+                reservations={selectedRoomReservations}
+                resourceSelected={Boolean(selectedRoomDetails)}
+                selectedEnd={endTime}
+                selectedStart={startTime}
+                slotDurationMinutes={slotDurationMinutes}
+                onBookingDateChange={setBookingDate}
+                onSelectSlot={handleTimelineSlotSelect}
+                onSlotDurationChange={setSlotDurationMinutes}
+              />
               <TextField id="faculty-start" label="Start Time" type="datetime-local" value={startTime} onChange={setStartTime} />
               <TextField id="faculty-end" label="End Time" type="datetime-local" value={endTime} onChange={setEndTime} />
               <button type="button" onClick={() => handleBookRoom()} className="w-full rounded-xl bg-oxblood py-3 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
@@ -205,14 +246,14 @@ export default function FacultyDashboard() {
 }
 
 function RoomCard({ room, selected, onSelect }: { room: StudyResource; selected: boolean; onSelect: () => void }) {
-  const available = room.current_status === "Available";
+  const canChoose = room.current_status !== "Under Maintenance";
 
   return (
-    <article className={`grid gap-4 border-b border-walnut/5 p-4 transition-colors last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.75fr)_auto] sm:items-center sm:px-5 ${available ? "hover:bg-walnut/[0.025]" : "bg-walnut/5 opacity-75"} ${selected ? "relative z-10 bg-oxblood/[0.04] ring-2 ring-inset ring-oxblood/25" : ""}`}>
+    <article className={`grid gap-4 border-b border-walnut/5 p-4 transition-colors last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.75fr)_auto] sm:items-center sm:px-5 ${canChoose ? "hover:bg-walnut/[0.025]" : "bg-walnut/5 opacity-75"} ${selected ? "relative z-10 bg-oxblood/[0.04] ring-2 ring-inset ring-oxblood/25" : ""}`}>
       <div className="min-w-0">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <p className="text-[10px] font-bold uppercase tracking-widest text-walnut/40">Level {room.floor} - {room.zone_location}</p>
-          <span className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${available ? "bg-moss/10 text-moss" : "bg-oxblood/10 text-oxblood"}`}>
+          <span className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${room.current_status === "Available" ? "bg-moss/10 text-moss" : "bg-oxblood/10 text-oxblood"}`}>
             {room.current_status}
           </span>
         </div>
@@ -227,12 +268,12 @@ function RoomCard({ room, selected, onSelect }: { room: StudyResource; selected:
       <button
         type="button"
         onClick={onSelect}
-        disabled={!available}
+        disabled={!canChoose}
         className={`min-h-11 rounded-xl px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25 ${
-          available ? "bg-walnut text-parchment hover:bg-oxblood" : "cursor-not-allowed bg-walnut/10 text-walnut/40"
+          canChoose ? "bg-walnut text-parchment hover:bg-oxblood" : "cursor-not-allowed bg-walnut/10 text-walnut/40"
         }`}
       >
-        {selected ? "Selected" : available ? "Select" : "Unavailable"}
+        {selected ? "Selected" : canChoose ? "Select" : "Unavailable"}
       </button>
     </article>
   );

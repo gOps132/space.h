@@ -22,6 +22,13 @@ import {
   getResources,
   type CurrentUser,
 } from "../api/client";
+import {
+  getBlockingReservationsForResource,
+  isReservationSlotAvailable,
+  ReservationTimePicker,
+  todayInputDate,
+  toDatetimeLocalInput,
+} from "./ReservationTimePicker";
 
 export default function StudentDashboard() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -34,6 +41,8 @@ export default function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [powerOnly, setPowerOnly] = useState(false);
   const [selectedResource, setSelectedResource] = useState("");
+  const [bookingDate, setBookingDate] = useState(todayInputDate());
+  const [slotDurationMinutes, setSlotDurationMinutes] = useState(60);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [coBookers, setCoBookers] = useState("");
@@ -92,7 +101,27 @@ export default function StudentDashboard() {
     });
   }, [filterFloor, filterZone, powerOnly, resources, searchQuery]);
 
-  const reservableResources = resources.filter((resource) => resource.current_status === "Available" && !isFacultyOnlyResource(resource));
+  const reservableResources = resources.filter((resource) => resource.current_status !== "Under Maintenance" && !isFacultyOnlyResource(resource));
+  const selectedResourceDetails = selectedResource ? resources.find((resource) => resource.resource_id === selectedResource) : undefined;
+  const selectedResourceReservations = useMemo(() => getBlockingReservationsForResource(reservations, selectedResource, bookingDate), [bookingDate, reservations, selectedResource]);
+
+  const handleTimelineSlotSelect = (slotStart: Date) => {
+    if (!selectedResourceDetails) {
+      toast.error("Choose a space before selecting a time.");
+      return;
+    }
+
+    const slotEnd = new Date(slotStart.getTime() + slotDurationMinutes * 60 * 1000);
+    const slotAvailable = isReservationSlotAvailable(slotStart, slotEnd, selectedResourceReservations);
+
+    if (!slotAvailable) {
+      toast.error("That time overlaps with an existing reservation.");
+      return;
+    }
+
+    setStartTime(toDatetimeLocalInput(slotStart));
+    setEndTime(toDatetimeLocalInput(slotEnd));
+  };
 
   const handleBooking = async (resourceId = selectedResource) => {
     if (activeReservation) {
@@ -111,8 +140,8 @@ export default function StudentDashboard() {
     }
 
     const resource = resources.find((item) => item.resource_id === resourceId);
-    if (!resource || resource.current_status !== "Available") {
-      toast.error("That space is no longer available.");
+    if (!resource || resource.current_status === "Under Maintenance") {
+      toast.error("That space is under maintenance.");
       return;
     }
 
@@ -348,7 +377,7 @@ export default function StudentDashboard() {
                 key={resource.resource_id}
                 resource={resource}
                 selected={selectedResource === resource.resource_id}
-                unavailableReason={isFacultyOnlyResource(resource) ? "Faculty only" : undefined}
+                unavailableReason={resource.current_status === "Under Maintenance" ? "Maintenance" : isFacultyOnlyResource(resource) ? "Faculty only" : undefined}
                 onSelect={() => setSelectedResource((current) => current === resource.resource_id ? "" : resource.resource_id)}
               />
             ))}
@@ -368,6 +397,18 @@ export default function StudentDashboard() {
                 </option>
               ))}
             </SelectField>
+
+            <ReservationTimePicker
+              bookingDate={bookingDate}
+              reservations={selectedResourceReservations}
+              resourceSelected={Boolean(selectedResourceDetails)}
+              selectedEnd={endTime}
+              selectedStart={startTime}
+              slotDurationMinutes={slotDurationMinutes}
+              onBookingDateChange={setBookingDate}
+              onSelectSlot={handleTimelineSlotSelect}
+              onSlotDurationChange={setSlotDurationMinutes}
+            />
 
             <TextField id="student-start" label="Start Time" type="datetime-local" value={startTime} onChange={setStartTime} />
             <TextField id="student-end" label="End Time" type="datetime-local" value={endTime} onChange={setEndTime} />
@@ -445,10 +486,10 @@ function TextField({ id, label, value, onChange, type = "text", placeholder }: {
 }
 
 function SpaceCard({ resource, selected, unavailableReason, onSelect }: { resource: StudyResource; selected: boolean; unavailableReason?: string; onSelect: () => void }) {
-  const isAvailable = resource.current_status === "Available" && !unavailableReason;
+  const canChoose = !unavailableReason;
 
   return (
-    <article className={`grid gap-4 border-b border-walnut/5 p-4 transition-colors last:border-b-0 sm:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.8fr)_auto] sm:items-center sm:px-5 ${isAvailable ? "bg-parchment hover:bg-walnut/[0.025]" : "bg-walnut/5 opacity-75"} ${selected ? "relative z-10 bg-oxblood/[0.04] ring-2 ring-inset ring-oxblood/25" : ""}`}>
+    <article className={`grid gap-4 border-b border-walnut/5 p-4 transition-colors last:border-b-0 sm:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.8fr)_auto] sm:items-center sm:px-5 ${canChoose ? "bg-parchment hover:bg-walnut/[0.025]" : "bg-walnut/5 opacity-75"} ${selected ? "relative z-10 bg-oxblood/[0.04] ring-2 ring-inset ring-oxblood/25" : ""}`}>
       <div className="min-w-0">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <p className="truncate text-[10px] font-semibold uppercase tracking-widest text-walnut/40">
@@ -470,13 +511,13 @@ function SpaceCard({ resource, selected, unavailableReason, onSelect }: { resour
         <span className="text-[10px] uppercase tracking-widest text-walnut/35">{resource.resource_id}</span>
         <button
           type="button"
-          disabled={!isAvailable}
+          disabled={!canChoose}
           onClick={onSelect}
           className={`rounded-lg px-5 py-2 text-sm font-semibold tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20 ${
-            isAvailable ? "bg-walnut text-parchment hover:bg-oxblood" : "cursor-not-allowed bg-walnut/10 text-walnut/40"
+            canChoose ? "bg-walnut text-parchment hover:bg-oxblood" : "cursor-not-allowed bg-walnut/10 text-walnut/40"
           }`}
         >
-          {selected ? "Selected" : isAvailable ? "Select" : unavailableReason ?? "Locked"}
+          {selected ? "Selected" : canChoose ? "Select" : unavailableReason ?? "Locked"}
         </button>
       </div>
     </article>
