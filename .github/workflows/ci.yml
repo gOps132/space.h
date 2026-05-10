@@ -34,6 +34,27 @@ jobs:
   backend:
     name: Backend PHP Test
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: spaceh
+          MYSQL_USER: spaceh
+          MYSQL_PASSWORD: spaceh
+          MYSQL_ROOT_PASSWORD: spaceh-root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pspaceh-root"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      SPACEH_DB_HOST: 127.0.0.1
+      SPACEH_DB_PORT: 3306
+      SPACEH_DB_NAME: spaceh
+      SPACEH_DB_USERNAME: spaceh
+      SPACEH_DB_PASSWORD: spaceh
     defaults:
       run:
         working-directory: backend
