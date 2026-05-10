@@ -38,6 +38,7 @@ target
 .gradle
 
 # AI-generated local context artifacts
+.agent/
 AGENTS.md
 PRODUCT.md
 DESIGN.md
