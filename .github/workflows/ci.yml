@@ -72,5 +72,8 @@ jobs:
       - name: Lint backend
         run: find . -name '*.php' -print0 | xargs -0 -n1 php -l
 
+      - name: Load backend schema
+        run: mysql -h 127.0.0.1 -u "$SPACEH_DB_USERNAME" -p"$SPACEH_DB_PASSWORD" "$SPACEH_DB_NAME" < schema/mysql.sql
+
       - name: Test backend
         run: php tests/run.php
