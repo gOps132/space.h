@@ -14,7 +14,7 @@ export interface StudyResource {
   resource_name: string;
   resource_type: 'Individual Seat' | 'Group Study Room' | 'Consultation Room';
   zone_location: string;
-  current_status: 'Available' | 'Reserved' | 'Occupied' | 'Under Maintenance';
+  current_status: 'Available' | 'Reserved' | 'Occupied' | 'Under Maintenance' | 'Maintenance Pending';
   floor: number;
   has_power_outlet?: boolean;
   capacity?: number; // For group study rooms
@@ -48,6 +48,22 @@ export interface OrganizationDashboard {
   peak_time_data: { hour: string; count: number }[];
   top_performing_zone: string;
 }
+
+export interface LibraryHours {
+  openTime: string;
+  closeTime: string;
+  slotMinutes: number;
+  maxAdvanceDays: number;
+  timezone: string;
+}
+
+export const defaultLibraryHours: LibraryHours = {
+  openTime: "08:00",
+  closeTime: "20:00",
+  slotMinutes: 30,
+  maxAdvanceDays: 30,
+  timezone: "Asia/Manila",
+};
 
 // Enhanced Users
 export const enhancedUsers: User[] = [
@@ -204,7 +220,7 @@ export const getFloorHeatmap = () => {
   return floors.map(floor => {
     const floorResources = enhancedResources.filter(r => r.floor === floor);
     const total = floorResources.length;
-    const occupied = floorResources.filter(r => r.current_status === 'Occupied' || r.current_status === 'Reserved').length;
+    const occupied = floorResources.filter(r => r.current_status === 'Occupied' || r.current_status === 'Reserved' || r.current_status === 'Maintenance Pending').length;
     const available = floorResources.filter(r => r.current_status === 'Available').length;
     const occupancyRate = total > 0 ? (occupied / total) * 100 : 0;
     

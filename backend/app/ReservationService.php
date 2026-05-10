@@ -27,6 +27,11 @@ final class ReservationService
             return self::error('Choose a valid resource and time range.', 400);
         }
 
+        $windowError = (new LibraryHoursService($this->pdo))->validateReservationWindow($start, $end);
+        if ($windowError !== null) {
+            return self::error($windowError, 422);
+        }
+
         $this->pdo->beginTransaction();
         try {
             $dbUser = $this->dbUser((string) $user['universityId']);
@@ -39,7 +44,7 @@ final class ReservationService
                 return $this->rollback(self::error('Account has an active booking hold.', 403));
             }
 
-            if ($resource['status'] === 'UNDER_MAINTENANCE') {
+            if (self::isMaintenanceStatus((string) $resource['status'])) {
                 return $this->rollback(self::error('That space is under maintenance.', 409));
             }
 
@@ -123,7 +128,7 @@ final class ReservationService
             }
 
             $this->updateReservationStatus($reservationId, 'CANCELLED');
-            $this->setResourceStatus((int) $reservation['resource_id'], 'AVAILABLE');
+            $this->releaseResource((int) $reservation['resource_id']);
             $this->pdo->commit();
 
             return ['status' => 200, 'body' => ['message' => 'Reservation cancelled.']];
@@ -166,10 +171,14 @@ final class ReservationService
 
                 if (self::checkInGraceExpired((string) $reservation['start_time'], new DateTimeImmutable())) {
                     $this->updateReservationStatus($reservationId, 'NO_SHOW');
-                    $this->setResourceStatus((int) $reservation['resource_id'], 'AVAILABLE');
+                    $this->releaseResource((int) $reservation['resource_id']);
                     $this->pdo->commit();
 
                     return self::error('Reservation expired after the 15-minute check-in grace period.', 409);
+                }
+
+                if (self::isMaintenanceStatus($this->resourceStatus((int) $reservation['resource_id']))) {
+                    return $this->rollback(self::error('That space is under maintenance.', 409));
                 }
 
                 $insert = $this->pdo->prepare('insert into attendance_log (reservation_id, actual_check_in) values (?, ?) on duplicate key update actual_check_in = values(actual_check_in), actual_check_out = null');
@@ -185,7 +194,7 @@ final class ReservationService
                 $update = $this->pdo->prepare('update attendance_log set actual_check_out = ? where reservation_id = ? and actual_check_out is null');
                 $update->execute([self::dbTime(new DateTimeImmutable()), $reservationId]);
                 $this->updateReservationStatus($reservationId, 'COMPLETED');
-                $this->setResourceStatus((int) $reservation['resource_id'], 'AVAILABLE');
+                $this->releaseResource((int) $reservation['resource_id']);
                 $message = 'Checked out.';
             }
 
@@ -313,6 +322,30 @@ final class ReservationService
     {
         $statement = $this->pdo->prepare('update study_resource set status = ? where id = ?');
         $statement->execute([$status, $resourceId]);
+    }
+
+    private function releaseResource(int $resourceId): void
+    {
+        $status = $this->resourceStatus($resourceId);
+        if (self::isMaintenanceStatus($status)) {
+            $this->setResourceStatus($resourceId, 'MAINTENANCE');
+            return;
+        }
+
+        $this->setResourceStatus($resourceId, 'AVAILABLE');
+    }
+
+    private function resourceStatus(int $resourceId): string
+    {
+        $statement = $this->pdo->prepare('select status from study_resource where id = ? limit 1 for update');
+        $statement->execute([$resourceId]);
+
+        return (string) $statement->fetchColumn();
+    }
+
+    private static function isMaintenanceStatus(string $status): bool
+    {
+        return in_array($status, ['MAINTENANCE', 'MAINTENANCE_PENDING', 'UNDER_MAINTENANCE'], true);
     }
 
     private function updateMany(string $table, string $column, string $value, array $ids, string $extraWhere = ''): void

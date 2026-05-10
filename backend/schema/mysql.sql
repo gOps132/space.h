@@ -71,6 +71,12 @@ create table if not exists issue_report (
     constraint fk_issue_resource foreign key (resource_id) references study_resource(id)
 ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
+create table if not exists app_setting (
+    setting_key varchar(80) not null primary key,
+    setting_value varchar(255) not null,
+    updated_at timestamp not null default current_timestamp on update current_timestamp
+) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
+
 create index idx_reservation_user_status on reservation(user_id, status);
 create index idx_reservation_resource_window on reservation(resource_id, start_time, end_time);
 create index idx_resource_status on study_resource(status);

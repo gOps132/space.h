@@ -1,12 +1,10 @@
-import type { ReservationTransaction } from "../data/enhancedMockData";
+import type { LibraryHours, ReservationTransaction } from "../data/enhancedMockData";
 
-const DAY_START_HOUR = 8;
-const DAY_END_HOUR = 20;
-const SLOT_MINUTES = 30;
 const DURATION_OPTIONS = [30, 60, 120, 240];
 
 type ReservationTimePickerProps = {
   bookingDate: string;
+  libraryHours: LibraryHours;
   onBookingDateChange: (value: string) => void;
   onSelectSlot: (slotStart: Date) => void;
   onSlotDurationChange: (minutes: number) => void;
@@ -19,6 +17,7 @@ type ReservationTimePickerProps = {
 
 export function ReservationTimePicker({
   bookingDate,
+  libraryHours,
   onBookingDateChange,
   onSelectSlot,
   onSlotDurationChange,
@@ -45,7 +44,7 @@ export function ReservationTimePicker({
       <div className="space-y-3 rounded-xl border border-walnut/10 bg-walnut/[0.03] p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-walnut/40">Day Schedule</p>
-          <span className="font-mono text-[10px] text-walnut/35">{DAY_START_HOUR}:00-{DAY_END_HOUR}:00</span>
+          <span className="font-mono text-[10px] text-walnut/35">{libraryHours.openTime}-{libraryHours.closeTime}</span>
         </div>
 
         <div className="space-y-2">
@@ -68,6 +67,7 @@ export function ReservationTimePicker({
 
         <AvailabilityTimeline
           bookingDate={bookingDate}
+          libraryHours={libraryHours}
           reservations={reservations}
           resourceSelected={resourceSelected}
           selectedEnd={selectedEnd}
@@ -82,6 +82,7 @@ export function ReservationTimePicker({
 
 function AvailabilityTimeline({
   bookingDate,
+  libraryHours,
   onSelectSlot,
   reservations,
   resourceSelected,
@@ -90,6 +91,7 @@ function AvailabilityTimeline({
   slotDurationMinutes,
 }: {
   bookingDate: string;
+  libraryHours: LibraryHours;
   onSelectSlot: (slotStart: Date) => void;
   reservations: ReservationTransaction[];
   resourceSelected: boolean;
@@ -97,7 +99,8 @@ function AvailabilityTimeline({
   selectedStart: string;
   slotDurationMinutes: number;
 }) {
-  const slots = buildTimelineSlots(bookingDate);
+  const slots = buildTimelineSlots(bookingDate, libraryHours);
+  const timeLabels = timelineLabels(libraryHours);
   const selectedStartDate = selectedStart ? new Date(selectedStart) : null;
   const selectedEndDate = selectedEnd ? new Date(selectedEnd) : null;
 
@@ -111,7 +114,7 @@ function AvailabilityTimeline({
         </div>
 
         {reservations.map((reservation) => {
-          const position = timelinePosition(new Date(reservation.start_time), new Date(reservation.end_time));
+          const position = timelinePosition(new Date(reservation.start_time), new Date(reservation.end_time), libraryHours);
 
           return (
             <div
@@ -127,8 +130,8 @@ function AvailabilityTimeline({
           <div
             className="absolute top-1 h-6 rounded-md bg-moss/20 ring-1 ring-inset ring-moss/35"
             style={{
-              left: `${timelinePosition(selectedStartDate, selectedEndDate).left}%`,
-              width: `${timelinePosition(selectedStartDate, selectedEndDate).width}%`,
+              left: `${timelinePosition(selectedStartDate, selectedEndDate, libraryHours).left}%`,
+              width: `${timelinePosition(selectedStartDate, selectedEndDate, libraryHours).width}%`,
             }}
           />
         )}
@@ -141,39 +144,55 @@ function AvailabilityTimeline({
       </div>
 
       <div className="flex justify-between px-1 font-mono text-[9px] text-walnut/30">
-        <span>8 AM</span>
-        <span>12 PM</span>
-        <span>4 PM</span>
-        <span>8 PM</span>
+        {timeLabels.map((label) => <span key={label}>{label}</span>)}
       </div>
 
       <div className="grid grid-cols-4 gap-1">
         {slots.map((slot) => {
           const slotEnd = new Date(slot.getTime() + slotDurationMinutes * 60 * 1000);
+          const segmentEnd = new Date(slot.getTime() + libraryHours.slotMinutes * 60 * 1000);
           const isPast = slot.getTime() <= Date.now();
           const occupied = reservations.some((reservation) => rangesOverlap(slot, slotEnd, new Date(reservation.start_time), new Date(reservation.end_time)));
-          const beyondHours = isBeyondHours(slot, slotEnd);
-          const disabled = !resourceSelected || isPast || occupied || beyondHours;
-          const selected = Boolean(
+          const segmentOccupied = reservations.some((reservation) => rangesOverlap(slot, segmentEnd, new Date(reservation.start_time), new Date(reservation.end_time)));
+          const beyondHours = isBeyondHours(slot, slotEnd, libraryHours);
+          const segmentBeyondHours = isBeyondHours(slot, segmentEnd, libraryHours);
+          const blockedAsStart = !resourceSelected || isPast || occupied || beyondHours;
+          const segmentBlocked = !resourceSelected || isPast || segmentOccupied || segmentBeyondHours;
+          const selectedStart = Boolean(
+            selectedStartDate &&
+            isSameInputDate(selectedStartDate, bookingDate) &&
+            slot.getTime() === selectedStartDate.getTime()
+          );
+          const selectedRange = Boolean(
             selectedStartDate &&
             selectedEndDate &&
+            isSameInputDate(selectedStartDate, bookingDate) &&
+            isSameInputDate(selectedEndDate, bookingDate) &&
             slot >= selectedStartDate &&
             slot < selectedEndDate
           );
+          const selectedStartBlocked = selectedStart && blockedAsStart;
+          const selectedRangeBlocked = selectedRange && segmentBlocked;
 
           return (
             <button
               key={slot.toISOString()}
               type="button"
-              disabled={disabled}
+              disabled={segmentBlocked}
               onClick={() => onSelectSlot(slot)}
               aria-label={`Select ${formatSlotLabel(slot)} for ${formatDuration(slotDurationMinutes)}`}
               className={`min-h-9 rounded-md px-1 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20 ${
-                selected
+                selectedStartBlocked
+                  ? "bg-oxblood/15 text-oxblood/70 ring-1 ring-inset ring-oxblood/20"
+                  : selectedStart
                   ? "bg-moss text-parchment"
-                  : occupied
+                  : selectedRangeBlocked
+                    ? "bg-oxblood/15 text-oxblood/70 ring-1 ring-inset ring-oxblood/20"
+                  : selectedRange
+                    ? "bg-moss/15 text-moss ring-1 ring-inset ring-moss/25"
+                  : segmentOccupied
                     ? "cursor-not-allowed bg-oxblood/10 text-oxblood/65"
-                    : disabled
+                    : segmentBlocked
                       ? "cursor-not-allowed bg-walnut/5 text-walnut/25"
                       : "bg-parchment text-walnut/60 hover:bg-moss/10 hover:text-moss"
               }`}
@@ -203,21 +222,51 @@ export function getBlockingReservationsForResource(reservations: ReservationTran
   });
 }
 
-export function isReservationSlotAvailable(start: Date, end: Date, reservations: ReservationTransaction[]) {
-  if (start.getTime() <= Date.now() || isBeyondHours(start, end)) {
+export function isReservationSlotAvailable(start: Date, end: Date, reservations: ReservationTransaction[], libraryHours: LibraryHours) {
+  if (validateReservationWindow(start, end, libraryHours) !== null) {
     return false;
   }
 
   return !reservations.some((reservation) => rangesOverlap(start, end, new Date(reservation.start_time), new Date(reservation.end_time)));
 }
 
-function buildTimelineSlots(bookingDate: string) {
+export function validateReservationWindow(start: Date, end: Date, libraryHours: LibraryHours) {
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    return "Choose a valid time range.";
+  }
+
+  if (start.getTime() <= Date.now()) {
+    return "Reservations must start in the future.";
+  }
+
+  if (start.getTime() > Date.now() + libraryHours.maxAdvanceDays * 24 * 60 * 60 * 1000) {
+    return `Reservations can only be booked up to ${libraryHours.maxAdvanceDays} days ahead.`;
+  }
+
+  if (toInputDate(start) !== toInputDate(end)) {
+    return "Start and end times must match the reservation date.";
+  }
+
+  if (!isSlotAligned(start, libraryHours.slotMinutes) || !isSlotAligned(end, libraryHours.slotMinutes)) {
+    return `Reservation times must use ${libraryHours.slotMinutes}-minute increments.`;
+  }
+
+  if (isBeyondHours(start, end, libraryHours)) {
+    return `Reservations must be within library hours (${libraryHours.openTime}-${libraryHours.closeTime}).`;
+  }
+
+  return null;
+}
+
+function buildTimelineSlots(bookingDate: string, libraryHours: LibraryHours) {
   const slots: Date[] = [];
-  const dayStart = new Date(`${bookingDate}T${String(DAY_START_HOUR).padStart(2, "0")}:00`);
-  const slotCount = ((DAY_END_HOUR - DAY_START_HOUR) * 60) / SLOT_MINUTES;
+  const dayStart = new Date(`${bookingDate}T${libraryHours.openTime}`);
+  const openMinutes = timeToMinutes(libraryHours.openTime);
+  const closeMinutes = timeToMinutes(libraryHours.closeTime);
+  const slotCount = Math.max(0, (closeMinutes - openMinutes) / libraryHours.slotMinutes);
 
   for (let index = 0; index < slotCount; index += 1) {
-    slots.push(new Date(dayStart.getTime() + index * SLOT_MINUTES * 60 * 1000));
+    slots.push(new Date(dayStart.getTime() + index * libraryHours.slotMinutes * 60 * 1000));
   }
 
   return slots;
@@ -231,21 +280,32 @@ export function rangesOverlap(start: Date, end: Date, existingStart: Date, exist
   return start < existingEnd && end > existingStart;
 }
 
-function isBeyondHours(start: Date, end: Date) {
-  const endMinutes = end.getHours() * 60 + end.getMinutes();
-  return !isSameInputDate(end, toInputDate(start)) || endMinutes > DAY_END_HOUR * 60;
+function isBeyondHours(start: Date, end: Date, libraryHours: LibraryHours) {
+  const startMinutes = dateToMinutes(start);
+  const endMinutes = dateToMinutes(end);
+  const openMinutes = timeToMinutes(libraryHours.openTime);
+  const closeMinutes = timeToMinutes(libraryHours.closeTime);
+  return !isSameInputDate(end, toInputDate(start)) || startMinutes < openMinutes || endMinutes > closeMinutes;
 }
 
-function timelinePosition(start: Date, end: Date) {
-  const startMinutes = start.getHours() * 60 + start.getMinutes();
-  const endMinutes = end.getHours() * 60 + end.getMinutes();
-  const dayStart = DAY_START_HOUR * 60;
-  const dayEnd = DAY_END_HOUR * 60;
-  const total = dayEnd - dayStart;
+function timelinePosition(start: Date, end: Date, libraryHours: LibraryHours) {
+  const startMinutes = dateToMinutes(start);
+  const endMinutes = dateToMinutes(end);
+  const dayStart = timeToMinutes(libraryHours.openTime);
+  const dayEnd = timeToMinutes(libraryHours.closeTime);
+  const total = Math.max(1, dayEnd - dayStart);
   const left = Math.max(0, Math.min(100, ((startMinutes - dayStart) / total) * 100));
   const right = Math.max(0, Math.min(100, ((endMinutes - dayStart) / total) * 100));
 
   return { left, width: Math.max(2, right - left) };
+}
+
+function timelineLabels(libraryHours: LibraryHours) {
+  const open = timeToMinutes(libraryHours.openTime);
+  const close = timeToMinutes(libraryHours.closeTime);
+  const span = Math.max(libraryHours.slotMinutes, close - open);
+
+  return [0, 1 / 3, 2 / 3, 1].map((ratio) => formatMinutes(open + Math.round((span * ratio) / libraryHours.slotMinutes) * libraryHours.slotMinutes));
 }
 
 export function todayInputDate() {
@@ -258,6 +318,19 @@ function toInputDate(date: Date) {
 
 export function toDatetimeLocalInput(date: Date) {
   return `${toInputDate(date)}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+export function toDatetimeLocalForDateAndTime(bookingDate: string, timeValue: string) {
+  return /^\d{2}:\d{2}$/.test(timeValue) ? `${bookingDate}T${timeValue}` : "";
+}
+
+export function toTimeInput(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 export function isSameInputDate(date: Date, inputDate: string) {
@@ -278,4 +351,25 @@ function formatSlotLabel(date: Date) {
 
 function formatShortTime(value: string) {
   return new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function dateToMinutes(date: Date) {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
+function timeToMinutes(value: string) {
+  const [hours, minutes] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function isSlotAligned(date: Date, slotMinutes: number) {
+  return date.getSeconds() === 0 && date.getMilliseconds() === 0 && dateToMinutes(date) % slotMinutes === 0;
+}
+
+function formatMinutes(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const date = new Date();
+  date.setHours(hours, mins, 0, 0);
+  return date.toLocaleTimeString([], { hour: "numeric", minute: mins === 0 ? undefined : "2-digit" });
 }

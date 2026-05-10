@@ -51,6 +51,11 @@ final class Router
                 return;
             }
 
+            if ($method === 'GET' && $path === '/api/library-hours') {
+                Response::json(['libraryHours' => (new LibraryHoursService($this->pdo))->get()]);
+                return;
+            }
+
             if ($method === 'GET' && $path === '/api/reservations') {
                 $user = $this->requireRoles(['STUDENT', 'FACULTY', 'ADMIN']);
                 if ($user === null) {
@@ -147,6 +152,16 @@ final class Router
                 }
 
                 $result = (new ResourceService($this->pdo))->updateStatus($matches[1], $this->jsonBody());
+                Response::json($result['body'], $result['status']);
+                return;
+            }
+
+            if ($method === 'PATCH' && $path === '/api/library-hours') {
+                if ($this->requireRoles(['ADMIN']) === null) {
+                    return;
+                }
+
+                $result = (new LibraryHoursService($this->pdo))->update($this->jsonBody());
                 Response::json($result['body'], $result['status']);
                 return;
             }

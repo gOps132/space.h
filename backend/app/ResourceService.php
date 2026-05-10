@@ -82,10 +82,16 @@ final class ResourceService
             return self::error('Resource not found.', 404);
         }
 
+        $message = 'Resource status updated.';
+        if ($status === 'MAINTENANCE' && $this->hasActiveSession($id)) {
+            $status = 'MAINTENANCE_PENDING';
+            $message = 'Maintenance queued after current checkout.';
+        }
+
         $statement = $this->pdo->prepare('update study_resource set status = ? where id = ?');
         $statement->execute([$status, $id]);
 
-        return ['status' => 200, 'body' => ['message' => 'Resource status updated.']];
+        return ['status' => 200, 'body' => ['message' => $message]];
     }
 
     public function update(string $resourceDisplayId, array $body): array
@@ -175,6 +181,21 @@ final class ResourceService
         }
 
         return $type === 'GROUP_ROOM' ? 3 : 1;
+    }
+
+    private function hasActiveSession(int $resourceId): bool
+    {
+        $statement = $this->pdo->prepare(
+            "select count(*)
+             from reservation r
+             left join attendance_log a on a.reservation_id = r.id
+             where r.resource_id = ?
+               and r.status = 'ACTIVE'
+               and a.actual_check_out is null"
+        );
+        $statement->execute([$resourceId]);
+
+        return (int) $statement->fetchColumn() > 0;
     }
 
     private static function numericId(string $value, string $prefix): ?int

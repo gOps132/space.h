@@ -41,4 +41,9 @@ final class Config
         return getenv('SPACEH_ALLOWED_ORIGIN') ?: 'http://localhost:5173';
     }
 
+    public static function appTimezone(): string
+    {
+        return getenv('SPACEH_TIMEZONE') ?: 'Asia/Manila';
+    }
+
 }

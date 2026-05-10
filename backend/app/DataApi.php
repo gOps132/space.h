@@ -97,7 +97,7 @@ final class DataApi
     {
         $resources = $this->resources();
         $reservations = $this->reservations(['role' => 'ADMIN']);
-        $occupied = count(array_filter($resources, fn (array $resource): bool => in_array($resource['current_status'], ['Reserved', 'Occupied'], true)));
+        $occupied = count(array_filter($resources, fn (array $resource): bool => in_array($resource['current_status'], ['Reserved', 'Occupied', 'Maintenance Pending'], true)));
         $occupancyRate = count($resources) === 0 ? 0 : round(($occupied / count($resources)) * 100, 1);
 
         return [
@@ -124,6 +124,7 @@ final class DataApi
             'AVAILABLE' => 'Available',
             'RESERVED' => 'Reserved',
             'OCCUPIED' => 'Occupied',
+            'MAINTENANCE_PENDING' => 'Maintenance Pending',
             default => 'Under Maintenance',
         };
     }

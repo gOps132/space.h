@@ -10,22 +10,28 @@ final class SeedData
 {
     public static function ensure(PDO $pdo): void
     {
-        $count = (int) $pdo->query('select count(*) from app_user')->fetchColumn();
-        if ($count > 0) {
-            return;
-        }
-
         $users = [
             ['24-0001-01', 'Ada Lovelace', 'ada@spaceh.test', 'library-pass', 'STUDENT'],
             ['23-1024', 'Grace Hopper', 'grace@spaceh.test', 'compiler-pass', 'FACULTY'],
             ['22-7777-03', 'Katherine Johnson', 'katherine@spaceh.test', 'orbit-pass', 'ADMIN'],
         ];
 
+        $userExists = $pdo->prepare('select count(*) from app_user where university_id = ?');
         $insertUser = $pdo->prepare(
             'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
         );
         foreach ($users as [$universityId, $fullName, $email, $password, $role]) {
+            $userExists->execute([$universityId]);
+            if ((int) $userExists->fetchColumn() > 0) {
+                continue;
+            }
+
             $insertUser->execute([$universityId, $fullName, $email, password_hash($password, PASSWORD_DEFAULT), $role, 'ACTIVE']);
+        }
+
+        $resourceCount = (int) $pdo->query('select count(*) from study_resource')->fetchColumn();
+        if ($resourceCount > 0) {
+            return;
         }
 
         $resources = [

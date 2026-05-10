@@ -1,5 +1,6 @@
 import type {
   AttendanceLogTransaction,
+  LibraryHours,
   OrganizationDashboard,
   ReservationTransaction,
   StudyResource,
@@ -95,6 +96,19 @@ export async function getAttendanceLogs(): Promise<AttendanceLogTransaction[]> {
 export async function getDashboard(): Promise<OrganizationDashboard> {
   const payload = await request<{ dashboard: OrganizationDashboard }>("/api/dashboard", { auth: true });
   return payload.dashboard;
+}
+
+export async function getLibraryHours(): Promise<LibraryHours> {
+  const payload = await request<{ libraryHours: LibraryHours }>("/api/library-hours");
+  return payload.libraryHours;
+}
+
+export async function updateLibraryHours(input: { openTime: string; closeTime: string }) {
+  return request<{ message: string; libraryHours: LibraryHours }>("/api/library-hours", {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(input),
+  });
 }
 
 export async function createReservation(input: {

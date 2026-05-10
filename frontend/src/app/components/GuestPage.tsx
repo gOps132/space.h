@@ -21,7 +21,7 @@ export default function GuestPage() {
   }, []);
 
   const floorData = useMemo(() => getFloorHeatmap(resources), [resources]);
-  const occupied = resources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved").length;
+  const occupied = resources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved" || resource.current_status === "Maintenance Pending").length;
   const occupancyPercent = Math.round((occupied / resources.length) * 100);
   const availableSeats = resources.filter((resource) => resource.resource_type === "Individual Seat" && resource.current_status === "Available").length;
   const availableRooms = resources.filter((resource) => resource.resource_type === "Group Study Room" && resource.current_status === "Available").length;
@@ -132,7 +132,7 @@ function getFloorHeatmap(resources: StudyResource[]) {
   return floors.map((floor) => {
     const floorResources = resources.filter((resource) => resource.floor === floor);
     const total = floorResources.length;
-    const occupied = floorResources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved").length;
+    const occupied = floorResources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved" || resource.current_status === "Maintenance Pending").length;
     const available = floorResources.filter((resource) => resource.current_status === "Available").length;
     const occupancyRate = total > 0 ? (occupied / total) * 100 : 0;
 

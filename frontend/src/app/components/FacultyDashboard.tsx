@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 import { BookOpen, Calendar, ChevronDown, Clock, Info, MapPin, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
+  defaultLibraryHours,
   enhancedReservations,
   enhancedResources,
+  type LibraryHours,
   type ReservationTransaction,
   type StudyResource,
 } from "../data/enhancedMockData";
@@ -12,6 +14,7 @@ import {
   ApiError,
   createReservation,
   currentUser as fetchCurrentUser,
+  getLibraryHours,
   getReservations,
   getResources,
   type CurrentUser,
@@ -19,17 +22,21 @@ import {
 import {
   getBlockingReservationsForResource,
   isBlockingReservation,
-  isReservationSlotAvailable,
+  isSameInputDate,
   rangesOverlap,
   ReservationTimePicker,
+  toDatetimeLocalForDateAndTime,
   todayInputDate,
   toDatetimeLocalInput,
+  toTimeInput,
+  validateReservationWindow,
 } from "./ReservationTimePicker";
 
 export default function FacultyDashboard() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [resources, setResources] = useState<StudyResource[]>(enhancedResources);
   const [reservations, setReservations] = useState<ReservationTransaction[]>(enhancedReservations);
+  const [libraryHours, setLibraryHours] = useState<LibraryHours>(defaultLibraryHours);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRoom, setSelectedRoom] = useState("");
   const [bookingDate, setBookingDate] = useState(todayInputDate());
@@ -39,14 +46,16 @@ export default function FacultyDashboard() {
   const [purpose, setPurpose] = useState("");
 
   const refresh = async () => {
-    const [user, nextResources, nextReservations] = await Promise.all([
+    const [user, nextResources, nextReservations, nextLibraryHours] = await Promise.all([
       fetchCurrentUser(),
       getResources(),
       getReservations(),
+      getLibraryHours(),
     ]);
     setCurrentUser(user);
     setResources(nextResources.length > 0 ? nextResources : enhancedResources);
     setReservations(nextReservations);
+    setLibraryHours(nextLibraryHours);
   };
 
   useEffect(() => {
@@ -62,6 +71,26 @@ export default function FacultyDashboard() {
   const selectedRoomDetails = selectedRoom ? resources.find((resource) => resource.resource_id === selectedRoom) : undefined;
   const selectedRoomReservations = useMemo(() => getBlockingReservationsForResource(reservations, selectedRoom, bookingDate), [bookingDate, reservations, selectedRoom]);
 
+  const handleBookingDateChange = (value: string) => {
+    setBookingDate(value);
+    setStartTime("");
+    setEndTime("");
+  };
+
+  const handleSlotDurationChange = (minutes: number) => {
+    setSlotDurationMinutes(minutes);
+    if (!startTime) return;
+
+    const start = new Date(startTime);
+    if (Number.isNaN(start.getTime()) || !isSameInputDate(start, bookingDate)) {
+      setStartTime("");
+      setEndTime("");
+      return;
+    }
+
+    setEndTime(toDatetimeLocalInput(new Date(start.getTime() + minutes * 60 * 1000)));
+  };
+
   const handleTimelineSlotSelect = (slotStart: Date) => {
     if (!selectedRoomDetails) {
       toast.error("Choose a room before selecting a time.");
@@ -69,13 +98,6 @@ export default function FacultyDashboard() {
     }
 
     const slotEnd = new Date(slotStart.getTime() + slotDurationMinutes * 60 * 1000);
-    const slotAvailable = isReservationSlotAvailable(slotStart, slotEnd, selectedRoomReservations);
-
-    if (!slotAvailable) {
-      toast.error("That time overlaps with an existing room reservation.");
-      return;
-    }
-
     setStartTime(toDatetimeLocalInput(slotStart));
     setEndTime(toDatetimeLocalInput(slotEnd));
   };
@@ -93,8 +115,14 @@ export default function FacultyDashboard() {
       return;
     }
 
+    const windowError = validateReservationWindow(start, end, libraryHours);
+    if (windowError !== null) {
+      toast.error(windowError);
+      return;
+    }
+
     const room = resources.find((resource) => resource.resource_id === roomId);
-    if (!room || room.current_status === "Under Maintenance") {
+    if (!room || isMaintenanceStatus(room)) {
       toast.error("That room is under maintenance.");
       return;
     }
@@ -187,24 +215,43 @@ export default function FacultyDashboard() {
             <div className="space-y-4">
               <SelectField label="Room" value={selectedRoom} onChange={setSelectedRoom}>
                 <option value="">Choose a room</option>
-                {groupRooms.filter((room) => room.current_status !== "Under Maintenance").map((room) => (
+                {groupRooms.filter((room) => !isMaintenanceStatus(room)).map((room) => (
                   <option key={room.resource_id} value={room.resource_id}>{room.resource_name}</option>
                 ))}
               </SelectField>
               <TextField id="faculty-purpose" label="Purpose" value={purpose} onChange={setPurpose} placeholder="Department Meeting" />
               <ReservationTimePicker
                 bookingDate={bookingDate}
+                libraryHours={libraryHours}
                 reservations={selectedRoomReservations}
                 resourceSelected={Boolean(selectedRoomDetails)}
                 selectedEnd={endTime}
                 selectedStart={startTime}
                 slotDurationMinutes={slotDurationMinutes}
-                onBookingDateChange={setBookingDate}
+                onBookingDateChange={handleBookingDateChange}
                 onSelectSlot={handleTimelineSlotSelect}
-                onSlotDurationChange={setSlotDurationMinutes}
+                onSlotDurationChange={handleSlotDurationChange}
               />
-              <TextField id="faculty-start" label="Start Time" type="datetime-local" value={startTime} onChange={setStartTime} />
-              <TextField id="faculty-end" label="End Time" type="datetime-local" value={endTime} onChange={setEndTime} />
+              <TextField
+                id="faculty-start"
+                label="Start Time"
+                type="time"
+                value={toTimeInput(startTime)}
+                min={libraryHours.openTime}
+                max={libraryHours.closeTime}
+                step={libraryHours.slotMinutes * 60}
+                onChange={(value) => setStartTime(toDatetimeLocalForDateAndTime(bookingDate, value))}
+              />
+              <TextField
+                id="faculty-end"
+                label="End Time"
+                type="time"
+                value={toTimeInput(endTime)}
+                min={libraryHours.openTime}
+                max={libraryHours.closeTime}
+                step={libraryHours.slotMinutes * 60}
+                onChange={(value) => setEndTime(toDatetimeLocalForDateAndTime(bookingDate, value))}
+              />
               <button type="button" onClick={() => handleBookRoom()} className="w-full rounded-xl bg-oxblood py-3 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25">
                 Confirm Reservation
               </button>
@@ -246,7 +293,7 @@ export default function FacultyDashboard() {
 }
 
 function RoomCard({ room, selected, onSelect }: { room: StudyResource; selected: boolean; onSelect: () => void }) {
-  const canChoose = room.current_status !== "Under Maintenance";
+  const canChoose = !isMaintenanceStatus(room);
 
   return (
     <article className={`grid gap-4 border-b border-walnut/5 p-4 transition-colors last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.75fr)_auto] sm:items-center sm:px-5 ${canChoose ? "hover:bg-walnut/[0.025]" : "bg-walnut/5 opacity-75"} ${selected ? "relative z-10 bg-oxblood/[0.04] ring-2 ring-inset ring-oxblood/25" : ""}`}>
@@ -279,6 +326,10 @@ function RoomCard({ room, selected, onSelect }: { room: StudyResource; selected:
   );
 }
 
+function isMaintenanceStatus(room: StudyResource) {
+  return room.current_status === "Under Maintenance" || room.current_status === "Maintenance Pending";
+}
+
 function SelectField({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {
   const id = label.toLowerCase().replace(/\s+/g, "-");
   return (
@@ -300,7 +351,7 @@ function SelectField({ label, value, onChange, children }: { label: string; valu
   );
 }
 
-function TextField({ id, label, value, onChange, type = "text", placeholder }: { id: string; label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string }) {
+function TextField({ id, label, value, onChange, type = "text", placeholder, min, max, step }: { id: string; label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; min?: string; max?: string; step?: number }) {
   return (
     <div className="space-y-2">
       <label htmlFor={id} className="px-1 text-[10px] font-semibold uppercase tracking-widest text-walnut/40">{label}</label>
@@ -310,6 +361,10 @@ function TextField({ id, label, value, onChange, type = "text", placeholder }: {
         type={type}
         value={value}
         placeholder={placeholder}
+        min={min}
+        max={max}
+        step={step}
+        onInput={(event) => onChange(event.currentTarget.value)}
         onChange={(event) => onChange(event.target.value)}
         className="academic-border w-full rounded-xl bg-parchment px-4 py-3 text-sm placeholder:text-walnut/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
       />

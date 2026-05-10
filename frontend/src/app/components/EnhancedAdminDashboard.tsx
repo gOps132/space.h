@@ -7,10 +7,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import {
   dashboardData,
+  defaultLibraryHours,
   enhancedAttendanceLogs,
   enhancedReservations,
   enhancedResources,
   type AttendanceLogTransaction,
+  type LibraryHours,
   type OrganizationDashboard,
   type ReservationTransaction,
   type StudyResource,
@@ -22,9 +24,11 @@ import {
   deleteResource,
   getAttendanceLogs,
   getDashboard,
+  getLibraryHours,
   getReservations,
   getResources,
   updateResource,
+  updateLibraryHours,
   updateResourceStatus,
 } from "../api/client";
 
@@ -55,6 +59,8 @@ export default function EnhancedAdminDashboard() {
   const [reservations, setReservations] = useState<ReservationTransaction[]>(enhancedReservations);
   const [attendanceLogs, setAttendanceLogs] = useState<AttendanceLogTransaction[]>(enhancedAttendanceLogs);
   const [dashboard, setDashboard] = useState<OrganizationDashboard>(dashboardData);
+  const [libraryHours, setLibraryHours] = useState<LibraryHours>(defaultLibraryHours);
+  const [libraryHoursForm, setLibraryHoursForm] = useState({ openTime: defaultLibraryHours.openTime, closeTime: defaultLibraryHours.closeTime });
   const [syncState, setSyncState] = useState<"live" | "fallback">("fallback");
   const [query, setQuery] = useState("");
   const [reservationQuery, setReservationQuery] = useState("");
@@ -65,18 +71,22 @@ export default function EnhancedAdminDashboard() {
   const [resourceForm, setResourceForm] = useState<ResourceFormState>(emptyResourceForm);
   const [isCreatingResource, setIsCreatingResource] = useState(false);
   const [isDeletingResource, setIsDeletingResource] = useState(false);
+  const [isSavingLibraryHours, setIsSavingLibraryHours] = useState(false);
 
   const refresh = async () => {
-    const [nextResources, nextReservations, nextAttendanceLogs, nextDashboard] = await Promise.all([
+    const [nextResources, nextReservations, nextAttendanceLogs, nextDashboard, nextLibraryHours] = await Promise.all([
       getResources(),
       getReservations(),
       getAttendanceLogs(),
       getDashboard(),
+      getLibraryHours(),
     ]);
     setResources(nextResources.length > 0 ? nextResources : enhancedResources);
     setReservations(nextReservations);
     setAttendanceLogs(nextAttendanceLogs);
     setDashboard(nextDashboard);
+    setLibraryHours(nextLibraryHours);
+    setLibraryHoursForm({ openTime: nextLibraryHours.openTime, closeTime: nextLibraryHours.closeTime });
     setSyncState("live");
   };
 
@@ -92,20 +102,22 @@ export default function EnhancedAdminDashboard() {
       setReservations(enhancedReservations);
       setAttendanceLogs(enhancedAttendanceLogs);
       setDashboard(dashboardData);
+      setLibraryHours(defaultLibraryHours);
+      setLibraryHoursForm({ openTime: defaultLibraryHours.openTime, closeTime: defaultLibraryHours.closeTime });
       setSyncState("fallback");
     });
   }, []);
 
   const metrics = useMemo(() => {
-    const occupiedOrReserved = resources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved").length;
+    const occupiedOrReserved = resources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved" || resource.current_status === "Maintenance Pending").length;
     const occupancyRate = resources.length > 0 ? Math.round((occupiedOrReserved / resources.length) * 100) : 0;
-    const maintenanceAlerts = resources.filter((resource) => resource.current_status === "Under Maintenance").length;
+    const maintenanceAlerts = resources.filter((resource) => resource.current_status === "Under Maintenance" || resource.current_status === "Maintenance Pending").length;
     const pendingReservations = reservations.filter((reservation) => reservation.booking_status === "Pending").length;
     const noShows = reservations.filter((reservation) => reservation.booking_status === "No-show").length;
     const zones = Array.from(new Set(resources.map((resource) => resource.zone_location)));
     const zoneData = zones.map((zone) => ({
       name: zone,
-      value: resources.filter((resource) => resource.zone_location === zone && (resource.current_status === "Occupied" || resource.current_status === "Reserved")).length,
+      value: resources.filter((resource) => resource.zone_location === zone && (resource.current_status === "Occupied" || resource.current_status === "Reserved" || resource.current_status === "Maintenance Pending")).length,
     }));
 
     return { occupancyRate, maintenanceAlerts, pendingReservations, noShows, zoneData };
@@ -127,9 +139,9 @@ export default function EnhancedAdminDashboard() {
 
   const updateStatus = async (resourceId: string, status: StudyResource["current_status"]) => {
     try {
-      await updateResourceStatus(resourceId, status);
+      const result = await updateResourceStatus(resourceId, status);
       await refresh();
-      toast.success(`Resource marked ${status}.`);
+      toast.success(result.message);
     } catch (caught) {
       toast.error(caught instanceof ApiError ? caught.message : "Status update failed.");
     }
@@ -137,6 +149,21 @@ export default function EnhancedAdminDashboard() {
 
   const updateResourceForm = <Key extends keyof ResourceFormState>(key: Key, value: ResourceFormState[Key]) => {
     setResourceForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const saveLibraryHours = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSavingLibraryHours(true);
+    try {
+      const result = await updateLibraryHours(libraryHoursForm);
+      setLibraryHours(result.libraryHours);
+      setLibraryHoursForm({ openTime: result.libraryHours.openTime, closeTime: result.libraryHours.closeTime });
+      toast.success(result.message);
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : "Library hours update failed.");
+    } finally {
+      setIsSavingLibraryHours(false);
+    }
   };
 
   const openCreateResource = () => {
@@ -261,6 +288,50 @@ export default function EnhancedAdminDashboard() {
         <AdminStatCard label="Current Occupancy" value={`${metrics.occupancyRate}%`} delta={`${metrics.pendingReservations} pending`} icon={Users} />
         <AdminStatCard label="Maintenance" value={metrics.maintenanceAlerts} delta="Unavailable for booking" icon={Wrench} warning />
         <AdminStatCard label="No-Shows" value={metrics.noShows} delta="Booking holds" icon={AlertCircle} warning={metrics.noShows > 0} />
+      </section>
+
+      <section className="academic-border premium-shadow rounded-2xl bg-parchment p-5 sm:p-6">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-walnut/45">
+              <CalendarClock className="h-4 w-4" aria-hidden="true" />
+              <p className="text-[10px] font-bold uppercase tracking-widest">Library Hours</p>
+            </div>
+            <h2 className="text-2xl font-serif">Reservation Window</h2>
+            <p className="mt-1 text-sm text-walnut/60">Booking requests must stay inside {libraryHours.openTime}-{libraryHours.closeTime}, use {libraryHours.slotMinutes}-minute slots, and stay within {libraryHours.maxAdvanceDays} days.</p>
+          </div>
+          <span className="w-fit rounded-lg bg-walnut/5 px-3 py-2 font-mono text-xs text-walnut/50">{libraryHours.timezone}</span>
+        </div>
+
+        <form onSubmit={saveLibraryHours} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+          <label className="space-y-2">
+            <span className="px-1 text-[10px] font-bold uppercase tracking-widest text-walnut/40">Open</span>
+            <input
+              type="time"
+              step={libraryHours.slotMinutes * 60}
+              value={libraryHoursForm.openTime}
+              onChange={(event) => setLibraryHoursForm((current) => ({ ...current, openTime: event.target.value }))}
+              className="academic-border w-full rounded-xl bg-parchment px-4 py-3 text-sm font-medium text-walnut focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="px-1 text-[10px] font-bold uppercase tracking-widest text-walnut/40">Close</span>
+            <input
+              type="time"
+              step={libraryHours.slotMinutes * 60}
+              value={libraryHoursForm.closeTime}
+              onChange={(event) => setLibraryHoursForm((current) => ({ ...current, closeTime: event.target.value }))}
+              className="academic-border w-full rounded-xl bg-parchment px-4 py-3 text-sm font-medium text-walnut focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={isSavingLibraryHours}
+            className="rounded-xl bg-walnut px-5 py-3 text-sm font-medium text-parchment transition-colors hover:bg-walnut/90 disabled:cursor-not-allowed disabled:bg-walnut/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/25"
+          >
+            {isSavingLibraryHours ? "Saving..." : "Save Hours"}
+          </button>
+        </form>
       </section>
 
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
@@ -731,6 +802,7 @@ function StatusSelect({ value, onChange }: { value: StudyResource["current_statu
         <option value="Reserved">Reserved</option>
         <option value="Occupied">Occupied</option>
         <option value="Under Maintenance">Under Maintenance</option>
+        <option value="Maintenance Pending" disabled>Maintenance Pending</option>
       </select>
       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-walnut/40" aria-hidden="true" />
     </div>

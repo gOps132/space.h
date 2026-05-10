@@ -6,7 +6,9 @@ import {
   enhancedAttendanceLogs,
   enhancedReservations,
   enhancedResources,
+  defaultLibraryHours,
   type AttendanceLogTransaction,
+  type LibraryHours,
   type ReservationTransaction,
   type StudyResource,
 } from "../data/enhancedMockData";
@@ -18,16 +20,20 @@ import {
   createReservation,
   currentUser as fetchCurrentUser,
   getAttendanceLogs,
+  getLibraryHours,
   getReservations,
   getResources,
   type CurrentUser,
 } from "../api/client";
 import {
   getBlockingReservationsForResource,
-  isReservationSlotAvailable,
+  isSameInputDate,
   ReservationTimePicker,
+  toDatetimeLocalForDateAndTime,
   todayInputDate,
   toDatetimeLocalInput,
+  toTimeInput,
+  validateReservationWindow,
 } from "./ReservationTimePicker";
 
 export default function StudentDashboard() {
@@ -35,6 +41,7 @@ export default function StudentDashboard() {
   const [resources, setResources] = useState<StudyResource[]>(enhancedResources);
   const [reservations, setReservations] = useState<ReservationTransaction[]>(enhancedReservations);
   const [attendanceLogs, setAttendanceLogs] = useState<AttendanceLogTransaction[]>(enhancedAttendanceLogs);
+  const [libraryHours, setLibraryHours] = useState<LibraryHours>(defaultLibraryHours);
   const [isLoading, setIsLoading] = useState(true);
   const [filterFloor, setFilterFloor] = useState("all");
   const [filterZone, setFilterZone] = useState("all");
@@ -48,16 +55,18 @@ export default function StudentDashboard() {
   const [coBookers, setCoBookers] = useState("");
 
   const refresh = async () => {
-    const [user, nextResources, nextReservations, nextAttendanceLogs] = await Promise.all([
+    const [user, nextResources, nextReservations, nextAttendanceLogs, nextLibraryHours] = await Promise.all([
       fetchCurrentUser(),
       getResources(),
       getReservations(),
       getAttendanceLogs(),
+      getLibraryHours(),
     ]);
     setCurrentUser(user);
     setResources(nextResources.length > 0 ? nextResources : enhancedResources);
     setReservations(nextReservations);
     setAttendanceLogs(nextAttendanceLogs);
+    setLibraryHours(nextLibraryHours);
   };
 
   useEffect(() => {
@@ -101,9 +110,29 @@ export default function StudentDashboard() {
     });
   }, [filterFloor, filterZone, powerOnly, resources, searchQuery]);
 
-  const reservableResources = resources.filter((resource) => resource.current_status !== "Under Maintenance" && !isFacultyOnlyResource(resource));
+  const reservableResources = resources.filter((resource) => !isMaintenanceStatus(resource) && !isFacultyOnlyResource(resource));
   const selectedResourceDetails = selectedResource ? resources.find((resource) => resource.resource_id === selectedResource) : undefined;
   const selectedResourceReservations = useMemo(() => getBlockingReservationsForResource(reservations, selectedResource, bookingDate), [bookingDate, reservations, selectedResource]);
+
+  const handleBookingDateChange = (value: string) => {
+    setBookingDate(value);
+    setStartTime("");
+    setEndTime("");
+  };
+
+  const handleSlotDurationChange = (minutes: number) => {
+    setSlotDurationMinutes(minutes);
+    if (!startTime) return;
+
+    const start = new Date(startTime);
+    if (Number.isNaN(start.getTime()) || !isSameInputDate(start, bookingDate)) {
+      setStartTime("");
+      setEndTime("");
+      return;
+    }
+
+    setEndTime(toDatetimeLocalInput(new Date(start.getTime() + minutes * 60 * 1000)));
+  };
 
   const handleTimelineSlotSelect = (slotStart: Date) => {
     if (!selectedResourceDetails) {
@@ -112,13 +141,6 @@ export default function StudentDashboard() {
     }
 
     const slotEnd = new Date(slotStart.getTime() + slotDurationMinutes * 60 * 1000);
-    const slotAvailable = isReservationSlotAvailable(slotStart, slotEnd, selectedResourceReservations);
-
-    if (!slotAvailable) {
-      toast.error("That time overlaps with an existing reservation.");
-      return;
-    }
-
     setStartTime(toDatetimeLocalInput(slotStart));
     setEndTime(toDatetimeLocalInput(slotEnd));
   };
@@ -140,7 +162,7 @@ export default function StudentDashboard() {
     }
 
     const resource = resources.find((item) => item.resource_id === resourceId);
-    if (!resource || resource.current_status === "Under Maintenance") {
+    if (!resource || isMaintenanceStatus(resource)) {
       toast.error("That space is under maintenance.");
       return;
     }
@@ -154,6 +176,12 @@ export default function StudentDashboard() {
     const end = new Date(endTime);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
       toast.error("Choose a valid time range.");
+      return;
+    }
+
+    const windowError = validateReservationWindow(start, end, libraryHours);
+    if (windowError !== null) {
+      toast.error(windowError);
       return;
     }
 
@@ -377,7 +405,7 @@ export default function StudentDashboard() {
                 key={resource.resource_id}
                 resource={resource}
                 selected={selectedResource === resource.resource_id}
-                unavailableReason={resource.current_status === "Under Maintenance" ? "Maintenance" : isFacultyOnlyResource(resource) ? "Faculty only" : undefined}
+                unavailableReason={isMaintenanceStatus(resource) ? "Maintenance" : isFacultyOnlyResource(resource) ? "Faculty only" : undefined}
                 onSelect={() => setSelectedResource((current) => current === resource.resource_id ? "" : resource.resource_id)}
               />
             ))}
@@ -400,18 +428,37 @@ export default function StudentDashboard() {
 
             <ReservationTimePicker
               bookingDate={bookingDate}
+              libraryHours={libraryHours}
               reservations={selectedResourceReservations}
               resourceSelected={Boolean(selectedResourceDetails)}
               selectedEnd={endTime}
               selectedStart={startTime}
               slotDurationMinutes={slotDurationMinutes}
-              onBookingDateChange={setBookingDate}
+              onBookingDateChange={handleBookingDateChange}
               onSelectSlot={handleTimelineSlotSelect}
-              onSlotDurationChange={setSlotDurationMinutes}
+              onSlotDurationChange={handleSlotDurationChange}
             />
 
-            <TextField id="student-start" label="Start Time" type="datetime-local" value={startTime} onChange={setStartTime} />
-            <TextField id="student-end" label="End Time" type="datetime-local" value={endTime} onChange={setEndTime} />
+            <TextField
+              id="student-start"
+              label="Start Time"
+              type="time"
+              value={toTimeInput(startTime)}
+              min={libraryHours.openTime}
+              max={libraryHours.closeTime}
+              step={libraryHours.slotMinutes * 60}
+              onChange={(value) => setStartTime(toDatetimeLocalForDateAndTime(bookingDate, value))}
+            />
+            <TextField
+              id="student-end"
+              label="End Time"
+              type="time"
+              value={toTimeInput(endTime)}
+              min={libraryHours.openTime}
+              max={libraryHours.closeTime}
+              step={libraryHours.slotMinutes * 60}
+              onChange={(value) => setEndTime(toDatetimeLocalForDateAndTime(bookingDate, value))}
+            />
             <TextField id="co-bookers" label="Group Member IDs" value={coBookers} onChange={setCoBookers} placeholder="24-0002-01, 24-0003-01" />
             <p className="px-1 text-xs leading-relaxed text-walnut/50">
               Add university IDs for students sharing a group room. Individual seats do not need extra IDs.
@@ -468,7 +515,7 @@ function SelectField({ label, value, onChange, children }: { label: string; valu
   );
 }
 
-function TextField({ id, label, value, onChange, type = "text", placeholder }: { id: string; label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string }) {
+function TextField({ id, label, value, onChange, type = "text", placeholder, min, max, step }: { id: string; label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; min?: string; max?: string; step?: number }) {
   return (
     <div className="space-y-2">
       <label htmlFor={id} className="px-1 text-[10px] font-semibold uppercase tracking-widest text-walnut/40">{label}</label>
@@ -478,6 +525,10 @@ function TextField({ id, label, value, onChange, type = "text", placeholder }: {
         type={type}
         value={value}
         placeholder={placeholder}
+        min={min}
+        max={max}
+        step={step}
+        onInput={(event) => onChange(event.currentTarget.value)}
         onChange={(event) => onChange(event.target.value)}
         className="academic-border w-full rounded-xl bg-parchment px-4 py-3 text-sm transition-colors placeholder:text-walnut/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
       />
@@ -528,12 +579,17 @@ function isFacultyOnlyResource(resource: StudyResource) {
   return Boolean(resource.is_faculty_exclusive) || resource.resource_type === "Consultation Room";
 }
 
+function isMaintenanceStatus(resource: StudyResource) {
+  return resource.current_status === "Under Maintenance" || resource.current_status === "Maintenance Pending";
+}
+
 function StatusBadge({ status }: { status: StudyResource["current_status"] }) {
   const styles: Record<StudyResource["current_status"], string> = {
     Available: "bg-moss/10 text-moss",
     Occupied: "bg-walnut/10 text-walnut/50",
     Reserved: "bg-oxblood/10 text-oxblood",
     "Under Maintenance": "bg-candlelight/15 text-walnut",
+    "Maintenance Pending": "bg-candlelight/15 text-walnut",
   };
 
   return <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${styles[status]}`}>{status}</span>;

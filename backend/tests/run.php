@@ -5,7 +5,10 @@ declare(strict_types=1);
 require __DIR__ . '/../bootstrap.php';
 
 use Spaceh\JwtService;
+use Spaceh\Database;
 use Spaceh\ReservationService;
+use Spaceh\ResourceService;
+use Spaceh\SeedData;
 
 function assertTrue(bool $condition, string $message): void
 {
@@ -13,6 +16,50 @@ function assertTrue(bool $condition, string $message): void
         fwrite(STDERR, "FAIL: {$message}\n");
         exit(1);
     }
+}
+
+function cleanupMaintenanceTestData(PDO $pdo): void
+{
+    $pdo->exec(
+        "delete a
+         from attendance_log a
+         join reservation r on r.id = a.reservation_id
+         left join study_resource sr on sr.id = r.resource_id
+         left join app_user u on u.id = r.user_id
+         where sr.resource_name like 'Occupied Maintenance %'
+            or sr.resource_name like 'Available Maintenance %'
+            or sr.resource_name like 'Window Validation %'
+            or u.email like 'maintenance-%@spaceh.test'
+            or u.email like 'booking-%@spaceh.test'
+            or u.email like 'window-%@spaceh.test'"
+    );
+    $pdo->exec(
+        "delete rp
+         from reservation_participant rp
+         join reservation r on r.id = rp.reservation_id
+         left join study_resource sr on sr.id = r.resource_id
+         left join app_user u on u.id = r.user_id
+         where sr.resource_name like 'Occupied Maintenance %'
+            or sr.resource_name like 'Available Maintenance %'
+            or sr.resource_name like 'Window Validation %'
+            or u.email like 'maintenance-%@spaceh.test'
+            or u.email like 'booking-%@spaceh.test'
+            or u.email like 'window-%@spaceh.test'"
+    );
+    $pdo->exec(
+        "delete r
+         from reservation r
+         left join study_resource sr on sr.id = r.resource_id
+         left join app_user u on u.id = r.user_id
+         where sr.resource_name like 'Occupied Maintenance %'
+            or sr.resource_name like 'Available Maintenance %'
+            or sr.resource_name like 'Window Validation %'
+            or u.email like 'maintenance-%@spaceh.test'
+            or u.email like 'booking-%@spaceh.test'
+            or u.email like 'window-%@spaceh.test'"
+    );
+    $pdo->exec("delete from study_resource where resource_name like 'Occupied Maintenance %' or resource_name like 'Available Maintenance %' or resource_name like 'Window Validation %'");
+    $pdo->exec("delete from app_user where email like 'maintenance-%@spaceh.test' or email like 'booking-%@spaceh.test' or email like 'window-%@spaceh.test'");
 }
 
 $jwt = new JwtService();
@@ -32,5 +79,135 @@ $graceCheck->setAccessible(true);
 $startTime = '2026-05-10 09:00:00';
 assertTrue($graceCheck->invoke(null, $startTime, new DateTimeImmutable('2026-05-10 09:15:00')) === false, 'check-in grace includes the 15-minute mark');
 assertTrue($graceCheck->invoke(null, $startTime, new DateTimeImmutable('2026-05-10 09:16:00')) === true, 'check-in grace expires after 15 minutes');
+
+$pdo = Database::connect();
+cleanupMaintenanceTestData($pdo);
+$resourceService = new ResourceService($pdo);
+$reservationService = new ReservationService($pdo);
+
+$suffix = bin2hex(random_bytes(4));
+$pdo->prepare(
+    'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
+)->execute(["98-{$suffix}", 'Maintenance Tester', "maintenance-{$suffix}@spaceh.test", password_hash('test-pass', PASSWORD_DEFAULT), 'STUDENT', 'ACTIVE']);
+$userId = (int) $pdo->lastInsertId();
+
+$pdo->prepare(
+    'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
+)->execute(["97-{$suffix}", 'Booking Tester', "booking-{$suffix}@spaceh.test", password_hash('test-pass', PASSWORD_DEFAULT), 'STUDENT', 'ACTIVE']);
+
+SeedData::ensure($pdo);
+$demoAdmin = $pdo->prepare("select count(*) from app_user where university_id = '22-7777-03' and role = 'ADMIN'");
+$demoAdmin->execute();
+assertTrue((int) $demoAdmin->fetchColumn() === 1, 'seed data ensures demo admin even when test users already exist');
+
+$pdo->prepare(
+    'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+)->execute(["Occupied Maintenance {$suffix}", 'INDIVIDUAL_SEAT', 'Tests', 1, 'OCCUPIED', 1, null, 1, 0]);
+$occupiedResourceId = (int) $pdo->lastInsertId();
+
+$pdo->prepare(
+    "insert into reservation (user_id, resource_id, start_time, end_time, status) values (?, ?, date_sub(now(), interval 10 minute), date_add(now(), interval 50 minute), 'ACTIVE')"
+)->execute([$userId, $occupiedResourceId]);
+$activeReservationId = (int) $pdo->lastInsertId();
+$pdo->prepare('insert into attendance_log (reservation_id, actual_check_in) values (?, now())')->execute([$activeReservationId]);
+
+$maintenanceResponse = $resourceService->updateStatus('SR' . str_pad((string) $occupiedResourceId, 3, '0', STR_PAD_LEFT), ['status' => 'Under Maintenance']);
+assertTrue($maintenanceResponse['status'] === 200, 'occupied resource accepts maintenance request');
+assertTrue((string) $pdo->query("select status from study_resource where id = {$occupiedResourceId}")->fetchColumn() === 'MAINTENANCE_PENDING', 'occupied resource queues maintenance instead of kicking active user');
+
+$futureStart = (new DateTimeImmutable('+1 day'))->setTime(10, 0);
+$futureEnd = $futureStart->modify('+1 hour');
+$blockedBooking = $reservationService->create(
+    ['universityId' => "97-{$suffix}", 'role' => 'STUDENT'],
+    ['resourceId' => 'SR' . str_pad((string) $occupiedResourceId, 3, '0', STR_PAD_LEFT), 'startTime' => $futureStart->format(DateTimeInterface::ATOM), 'endTime' => $futureEnd->format(DateTimeInterface::ATOM)]
+);
+assertTrue($blockedBooking['status'] === 409, 'queued maintenance blocks future bookings');
+
+$checkoutResponse = $reservationService->checkOut(['universityId' => '22-7777-03', 'role' => 'ADMIN'], 'RES' . str_pad((string) $activeReservationId, 3, '0', STR_PAD_LEFT));
+assertTrue($checkoutResponse['status'] === 200, 'active reservation can check out while maintenance is queued');
+assertTrue((string) $pdo->query("select status from study_resource where id = {$occupiedResourceId}")->fetchColumn() === 'MAINTENANCE', 'queued maintenance becomes under maintenance after checkout');
+
+$pdo->prepare(
+    'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+)->execute(["Available Maintenance {$suffix}", 'INDIVIDUAL_SEAT', 'Tests', 1, 'AVAILABLE', 1, null, 1, 0]);
+$availableResourceId = (int) $pdo->lastInsertId();
+$immediateMaintenance = $resourceService->updateStatus('SR' . str_pad((string) $availableResourceId, 3, '0', STR_PAD_LEFT), ['status' => 'Under Maintenance']);
+assertTrue($immediateMaintenance['status'] === 200, 'available resource accepts maintenance request');
+assertTrue((string) $pdo->query("select status from study_resource where id = {$availableResourceId}")->fetchColumn() === 'MAINTENANCE', 'available resource enters maintenance immediately');
+
+cleanupMaintenanceTestData($pdo);
+
+$windowSuffix = bin2hex(random_bytes(4));
+register_shutdown_function(function () use ($pdo): void {
+    cleanupMaintenanceTestData($pdo);
+});
+$timezone = new DateTimeZone('Asia/Manila');
+$windowUserId = "96-{$windowSuffix}";
+$pdo->prepare(
+    'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
+)->execute([$windowUserId, 'Window Tester', "window-{$windowSuffix}@spaceh.test", password_hash('test-pass', PASSWORD_DEFAULT), 'STUDENT', 'ACTIVE']);
+$pdo->prepare(
+    'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+)->execute(["Window Validation {$windowSuffix}", 'INDIVIDUAL_SEAT', 'Tests', 1, 'AVAILABLE', 1, null, 1, 0]);
+$windowResourceId = 'SR' . str_pad((string) $pdo->lastInsertId(), 3, '0', STR_PAD_LEFT);
+$futureDay = (new DateTimeImmutable('now', $timezone))->modify('+1 day')->setTime(10, 0);
+
+$pastResponse = $reservationService->create(
+    ['universityId' => $windowUserId, 'role' => 'STUDENT'],
+    ['resourceId' => $windowResourceId, 'startTime' => (new DateTimeImmutable('-1 hour'))->format(DateTimeInterface::ATOM), 'endTime' => (new DateTimeImmutable('+1 hour'))->format(DateTimeInterface::ATOM)]
+);
+assertTrue($pastResponse['status'] === 422, 'backend rejects reservation start in the past');
+
+$crossDayResponse = $reservationService->create(
+    ['universityId' => $windowUserId, 'role' => 'STUDENT'],
+    ['resourceId' => $windowResourceId, 'startTime' => $futureDay->setTime(19, 30)->format(DateTimeInterface::ATOM), 'endTime' => $futureDay->modify('+1 day')->setTime(8, 30)->format(DateTimeInterface::ATOM)]
+);
+assertTrue($crossDayResponse['status'] === 422, 'backend rejects reservations that cross local dates');
+
+$slotResponse = $reservationService->create(
+    ['universityId' => $windowUserId, 'role' => 'STUDENT'],
+    ['resourceId' => $windowResourceId, 'startTime' => $futureDay->setTime(10, 15)->format(DateTimeInterface::ATOM), 'endTime' => $futureDay->setTime(11, 15)->format(DateTimeInterface::ATOM)]
+);
+assertTrue($slotResponse['status'] === 422, 'backend rejects non-30-minute reservation boundaries');
+
+$reversedSameDayResponse = $reservationService->create(
+    ['universityId' => $windowUserId, 'role' => 'STUDENT'],
+    ['resourceId' => $windowResourceId, 'startTime' => $futureDay->setTime(20, 0)->format(DateTimeInterface::ATOM), 'endTime' => $futureDay->setTime(12, 0)->format(DateTimeInterface::ATOM)]
+);
+assertTrue($reversedSameDayResponse['status'] === 400, 'backend rejects manual end times before start time');
+
+$tooFarResponse = $reservationService->create(
+    ['universityId' => $windowUserId, 'role' => 'STUDENT'],
+    ['resourceId' => $windowResourceId, 'startTime' => $futureDay->modify('+31 days')->format(DateTimeInterface::ATOM), 'endTime' => $futureDay->modify('+31 days')->setTime(11, 0)->format(DateTimeInterface::ATOM)]
+);
+assertTrue($tooFarResponse['status'] === 422, 'backend rejects reservations more than 30 days ahead');
+
+$hoursService = new Spaceh\LibraryHoursService($pdo);
+$hoursResponse = $hoursService->update(['openTime' => '09:00', 'closeTime' => '17:00']);
+assertTrue($hoursResponse['status'] === 200, 'admin can update library hours');
+
+$outsideHoursResponse = $reservationService->create(
+    ['universityId' => $windowUserId, 'role' => 'STUDENT'],
+    ['resourceId' => $windowResourceId, 'startTime' => $futureDay->setTime(8, 0)->format(DateTimeInterface::ATOM), 'endTime' => $futureDay->setTime(9, 0)->format(DateTimeInterface::ATOM)]
+);
+assertTrue($outsideHoursResponse['status'] === 422, 'backend rejects reservations outside configured library hours');
+
+$hoursService->update(['openTime' => '08:00', 'closeTime' => '22:00']);
+$closingWindowUserId = "95-{$windowSuffix}";
+$pdo->prepare(
+    'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
+)->execute([$closingWindowUserId, 'Closing Window Tester', "window-closing-{$windowSuffix}@spaceh.test", password_hash('test-pass', PASSWORD_DEFAULT), 'STUDENT', 'ACTIVE']);
+$pdo->prepare(
+    'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+)->execute(["Window Validation Closing {$windowSuffix}", 'INDIVIDUAL_SEAT', 'Tests', 1, 'AVAILABLE', 1, null, 1, 0]);
+$closingWindowResourceId = 'SR' . str_pad((string) $pdo->lastInsertId(), 3, '0', STR_PAD_LEFT);
+$closingWindowResponse = $reservationService->create(
+    ['universityId' => $closingWindowUserId, 'role' => 'STUDENT'],
+    ['resourceId' => $closingWindowResourceId, 'startTime' => $futureDay->setTime(18, 0)->format(DateTimeInterface::ATOM), 'endTime' => $futureDay->setTime(22, 0)->format(DateTimeInterface::ATOM)]
+);
+assertTrue($closingWindowResponse['status'] === 201, 'backend accepts reservations that end at configured closing time');
+
+$hoursService->update(['openTime' => '08:00', 'closeTime' => '20:00']);
+cleanupMaintenanceTestData($pdo);
 
 echo "PHP backend tests passed.\n";
