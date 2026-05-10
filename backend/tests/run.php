@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/../bootstrap.php';
 
 use Spaceh\JwtService;
+use Spaceh\ReservationService;
 
 function assertTrue(bool $condition, string $message): void
 {
@@ -25,5 +26,11 @@ assertTrue($jwt->verify($token . 'broken') === null, 'JWT rejects tampered token
 assertTrue((bool) preg_match('/^\d{2}-\d{4}(-\d{2})?$/', '24-0001-01'), 'new university ID format accepted');
 assertTrue((bool) preg_match('/^\d{2}-\d{4}(-\d{2})?$/', '23-1024'), 'old university ID format accepted');
 assertTrue(!preg_match('/^\d{2}-\d{4}(-\d{2})?$/', '2024-0001'), 'malformed university ID rejected');
+
+$graceCheck = new ReflectionMethod(ReservationService::class, 'checkInGraceExpired');
+$graceCheck->setAccessible(true);
+$startTime = '2026-05-10 09:00:00';
+assertTrue($graceCheck->invoke(null, $startTime, new DateTimeImmutable('2026-05-10 09:15:00')) === false, 'check-in grace includes the 15-minute mark');
+assertTrue($graceCheck->invoke(null, $startTime, new DateTimeImmutable('2026-05-10 09:16:00')) === true, 'check-in grace expires after 15 minutes');
 
 echo "PHP backend tests passed.\n";

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { AlertCircle, BarChart3, ChevronDown, Download, MoreVertical, Pencil, Plus, Search, Settings, Trash2, Users, Wrench } from "lucide-react";
+import { AlertCircle, BarChart3, CalendarClock, ChevronDown, Download, MoreVertical, Pencil, Plus, Search, Settings, Trash2, Users, Wrench } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
@@ -57,6 +57,8 @@ export default function EnhancedAdminDashboard() {
   const [dashboard, setDashboard] = useState<OrganizationDashboard>(dashboardData);
   const [syncState, setSyncState] = useState<"live" | "fallback">("fallback");
   const [query, setQuery] = useState("");
+  const [reservationQuery, setReservationQuery] = useState("");
+  const [reservationStatus, setReservationStatus] = useState<ReservationTransaction["booking_status"] | "All">("All");
   const [isResourceDialogOpen, setIsResourceDialogOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<StudyResource | null>(null);
   const [deletingResource, setDeletingResource] = useState<StudyResource | null>(null);
@@ -112,6 +114,15 @@ export default function EnhancedAdminDashboard() {
   const filteredResources = resources.filter((resource) => {
     const haystack = `${resource.resource_id} ${resource.resource_name} ${resource.zone_location} ${resource.current_status}`.toLowerCase();
     return haystack.includes(query.toLowerCase());
+  });
+
+  const filteredReservations = reservations.filter((reservation) => {
+    const resource = resources.find((item) => item.resource_id === reservation.resource_id);
+    const haystack = `${reservation.reservation_id} ${reservation.user_id} ${reservation.resource_id} ${resource?.resource_name ?? ""} ${reservation.booking_status}`.toLowerCase();
+    const matchesQuery = haystack.includes(reservationQuery.toLowerCase());
+    const matchesStatus = reservationStatus === "All" || reservation.booking_status === reservationStatus;
+
+    return matchesQuery && matchesStatus;
   });
 
   const updateStatus = async (resourceId: string, status: StudyResource["current_status"]) => {
@@ -300,6 +311,116 @@ export default function EnhancedAdminDashboard() {
       </section>
 
       <section className="academic-border premium-shadow overflow-hidden rounded-2xl bg-parchment">
+        <div className="flex flex-col gap-5 border-b border-walnut/10 p-5 md:flex-row md:items-end md:justify-between md:p-6">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-walnut/45">
+              <CalendarClock className="h-4 w-4" aria-hidden="true" />
+              <p className="text-[10px] font-bold uppercase tracking-widest">Reservation Ledger</p>
+            </div>
+            <h2 className="text-2xl font-serif">Booking Records</h2>
+            <p className="mt-1 max-w-2xl text-sm text-walnut/60">Review holds, active sessions, completed visits, cancellations, and no-shows.</p>
+          </div>
+
+          <div className="grid w-full gap-3 sm:grid-cols-[1fr_auto] md:w-auto">
+            <div className="relative md:w-[320px]">
+              <label htmlFor="admin-reservation-search" className="sr-only">Search reservations</label>
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-walnut/30" aria-hidden="true" />
+              <input
+                id="admin-reservation-search"
+                name="admin-reservation-search"
+                type="search"
+                placeholder="Search reservation, user, or space..."
+                value={reservationQuery}
+                onChange={(event) => setReservationQuery(event.target.value)}
+                className="w-full rounded-xl bg-walnut/5 py-3 pl-10 pr-4 text-sm font-medium placeholder:text-walnut/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20"
+              />
+            </div>
+
+            <div className="relative">
+              <label htmlFor="admin-reservation-status" className="sr-only">Filter reservation status</label>
+              <select
+                id="admin-reservation-status"
+                value={reservationStatus}
+                onChange={(event) => setReservationStatus(event.target.value as ReservationTransaction["booking_status"] | "All")}
+                className="w-full appearance-none rounded-xl bg-walnut/5 py-3 pl-4 pr-10 text-sm font-medium text-walnut focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20 sm:w-[170px]"
+              >
+                <option value="All">All statuses</option>
+                <option value="Pending">Pending</option>
+                <option value="Active">Active</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="No-show">No-show</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-walnut/40" aria-hidden="true" />
+            </div>
+          </div>
+        </div>
+
+        <div className="max-h-[38rem] divide-y divide-walnut/5 overflow-y-auto md:hidden">
+          {filteredReservations.length === 0 ? (
+            <p className="p-5 text-sm italic text-walnut/45">No reservations match this view.</p>
+          ) : (
+            filteredReservations.map((reservation) => (
+              <ReservationMobileCard
+                key={reservation.reservation_id}
+                attendance={attendanceLogs.find((log) => log.reservation_id === reservation.reservation_id)}
+                reservation={reservation}
+                resource={resources.find((resource) => resource.resource_id === reservation.resource_id)}
+              />
+            ))
+          )}
+        </div>
+
+        <div className="hidden max-h-[36rem] overflow-auto md:block">
+          <table className="w-full min-w-[980px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-walnut/10 bg-walnut/5">
+                <TableHead>Reservation</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Space</TableHead>
+                <TableHead>Window</TableHead>
+                <TableHead>Attendance</TableHead>
+                <TableHead>Group</TableHead>
+                <TableHead align="right">Status</TableHead>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-walnut/5">
+              {filteredReservations.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-6 text-sm italic text-walnut/45">No reservations match this view.</td>
+                </tr>
+              ) : (
+                filteredReservations.map((reservation) => {
+                  const resource = resources.find((item) => item.resource_id === reservation.resource_id);
+                  const attendance = attendanceLogs.find((log) => log.reservation_id === reservation.reservation_id);
+
+                  return (
+                    <tr key={reservation.reservation_id} className="transition-colors hover:bg-walnut/[0.02]">
+                      <td className="p-5 font-mono text-sm text-walnut/60">{reservation.reservation_id}</td>
+                      <td className="p-5 font-mono text-sm text-walnut/60">{reservation.user_id}</td>
+                      <td className="space-y-1 p-5">
+                        <p className="font-serif text-lg text-walnut">{resource?.resource_name ?? reservation.resource_id}</p>
+                        <p className="font-mono text-xs text-walnut/40">{reservation.resource_id}</p>
+                      </td>
+                      <td className="p-5 text-sm text-walnut/60">{formatReservationWindow(reservation.start_time, reservation.end_time)}</td>
+                      <td className="p-5 text-sm text-walnut/60">{formatAttendanceState(attendance)}</td>
+                      <td className="p-5 text-sm text-walnut/60">{formatCoBookers(reservation.co_bookers)}</td>
+                      <td className="p-5 text-right"><ReservationStatusBadge status={reservation.booking_status} /></td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-walnut/10 bg-walnut/5 p-5 text-xs text-walnut/45">
+          <p>Showing {filteredReservations.length} of {reservations.length} reservation records</p>
+          <CalendarClock className="h-4 w-4" aria-hidden="true" />
+        </div>
+      </section>
+
+      <section className="academic-border premium-shadow overflow-hidden rounded-2xl bg-parchment">
         <div className="flex flex-col items-start justify-between gap-5 border-b border-walnut/10 p-5 md:flex-row md:items-center md:p-6">
           <h2 className="text-2xl font-serif">Space Inventory</h2>
           <div className="relative w-full md:w-[340px]">
@@ -317,7 +438,7 @@ export default function EnhancedAdminDashboard() {
           </div>
         </div>
 
-        <div className="divide-y divide-walnut/5 md:hidden">
+        <div className="max-h-[38rem] divide-y divide-walnut/5 overflow-y-auto md:hidden">
           {filteredResources.map((resource) => (
             <ResourceMobileCard
               key={resource.resource_id}
@@ -329,7 +450,7 @@ export default function EnhancedAdminDashboard() {
           ))}
         </div>
 
-        <div className="hidden overflow-x-auto md:block">
+        <div className="hidden max-h-[36rem] overflow-auto md:block">
           <table className="w-full min-w-[900px] border-collapse text-left">
             <thead>
               <tr className="border-b border-walnut/10 bg-walnut/5">
@@ -424,6 +545,105 @@ function resourceToForm(resource: StudyResource): ResourceFormState {
     hasPowerOutlet: Boolean(resource.has_power_outlet),
     isFacultyExclusive: Boolean(resource.is_faculty_exclusive),
   };
+}
+
+function ReservationMobileCard({
+  attendance,
+  reservation,
+  resource,
+}: {
+  attendance?: AttendanceLogTransaction;
+  reservation: ReservationTransaction;
+  resource?: StudyResource;
+}) {
+  return (
+    <article className="space-y-4 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-mono text-xs text-walnut/45">{reservation.reservation_id}</p>
+          <h3 className="mt-1 text-xl font-serif text-walnut">{resource?.resource_name ?? reservation.resource_id}</h3>
+          <p className="mt-1 font-mono text-xs text-walnut/40">{reservation.user_id} / {reservation.resource_id}</p>
+        </div>
+        <ReservationStatusBadge status={reservation.booking_status} />
+      </div>
+
+      <dl className="grid gap-3 text-sm sm:grid-cols-3">
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-widest text-walnut/35">Window</dt>
+          <dd className="mt-1 text-walnut/65">{formatReservationWindow(reservation.start_time, reservation.end_time)}</dd>
+        </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-widest text-walnut/35">Attendance</dt>
+          <dd className="mt-1 text-walnut/65">{formatAttendanceState(attendance)}</dd>
+        </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-widest text-walnut/35">Group</dt>
+          <dd className="mt-1 text-walnut/65">{formatCoBookers(reservation.co_bookers)}</dd>
+        </div>
+      </dl>
+    </article>
+  );
+}
+
+function ReservationStatusBadge({ status }: { status: ReservationTransaction["booking_status"] }) {
+  const tone = {
+    Active: "border-moss/25 bg-moss/10 text-moss",
+    Pending: "border-candlelight/35 bg-candlelight/15 text-walnut",
+    Completed: "border-walnut/15 bg-walnut/5 text-walnut/60",
+    Cancelled: "border-walnut/15 bg-walnut/5 text-walnut/45",
+    "No-show": "border-oxblood/25 bg-oxblood/10 text-oxblood",
+  }[status];
+
+  return (
+    <span className={`inline-flex rounded border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${tone}`}>
+      {status}
+    </span>
+  );
+}
+
+function formatReservationWindow(startTime: string, endTime: string): string {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return `${startTime} to ${endTime}`;
+  }
+
+  const date = start.toLocaleDateString([], { month: "short", day: "numeric" });
+  const startLabel = start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const endLabel = end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  return `${date}, ${startLabel} to ${endLabel}`;
+}
+
+function formatAttendanceState(attendance?: AttendanceLogTransaction): string {
+  if (!attendance?.actual_check_in) {
+    return "Not checked in";
+  }
+
+  const checkIn = new Date(attendance.actual_check_in);
+  const checkInLabel = Number.isNaN(checkIn.getTime())
+    ? attendance.actual_check_in
+    : checkIn.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  if (!attendance.actual_check_out) {
+    return `In at ${checkInLabel}`;
+  }
+
+  const checkOut = new Date(attendance.actual_check_out);
+  const checkOutLabel = Number.isNaN(checkOut.getTime())
+    ? attendance.actual_check_out
+    : checkOut.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  return `${checkInLabel} to ${checkOutLabel}`;
+}
+
+function formatCoBookers(coBookers?: string[]): string {
+  if (!coBookers || coBookers.length === 0) {
+    return "Solo";
+  }
+
+  return coBookers.join(", ");
 }
 
 function AdminStatCard({ label, value, delta, icon: Icon, warning = false }: { label: string; value: string | number; delta: string; icon: typeof Settings; warning?: boolean }) {

@@ -53,7 +53,7 @@ export default function GuestPage() {
             <h2 className="text-2xl font-serif">Open Seats and Rooms</h2>
             <span className="text-sm text-walnut/45">{resources.length} tracked</span>
           </div>
-          <div className="divide-y divide-walnut/5">
+          <div className="max-h-[42rem] divide-y divide-walnut/5 overflow-y-auto">
             {resources.map((space) => (
               <SpaceRow key={space.resource_id} space={space} />
             ))}
@@ -76,7 +76,7 @@ export default function GuestPage() {
 
           <section className="rounded-2xl border border-candlelight/20 bg-candlelight/[0.05] p-6">
             <h2 className="mb-4 text-lg font-serif">Floor Snapshot</h2>
-            <div className="space-y-4">
+            <div className="max-h-[22rem] space-y-4 overflow-y-auto pr-1">
               {floorData.map((floor) => (
                 <div key={floor.floor} className="space-y-2">
                   <div className="flex items-center justify-between text-sm">

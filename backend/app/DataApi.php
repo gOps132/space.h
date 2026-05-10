@@ -14,6 +14,8 @@ final class DataApi
 
     public function resources(): array
     {
+        $this->releaseExpiredCheckIns();
+
         $rows = $this->pdo
             ->query('select id, resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive from study_resource order by floor, id')
             ->fetchAll();
@@ -34,6 +36,8 @@ final class DataApi
 
     public function reservations(?array $user = null): array
     {
+        $this->releaseExpiredCheckIns();
+
         $sql = 'select r.id, r.user_id, r.resource_id, r.start_time, r.end_time, r.status, r.created_at
                 from reservation r
                 join app_user u on u.id = r.user_id';
@@ -63,6 +67,8 @@ final class DataApi
 
     public function attendanceLogs(?array $user = null): array
     {
+        $this->releaseExpiredCheckIns();
+
         $sql = 'select a.id, a.reservation_id, a.actual_check_in, a.actual_check_out, a.session_notes
                 from attendance_log a
                 join reservation r on r.id = a.reservation_id
@@ -133,6 +139,11 @@ final class DataApi
             'NO_SHOW' => 'No-show',
             default => 'Pending',
         };
+    }
+
+    private function releaseExpiredCheckIns(): void
+    {
+        (new ReservationService($this->pdo))->releaseExpiredCheckIns();
     }
 
     private function participantsByReservation(): array

@@ -16,6 +16,8 @@ final class ReservationService
 
     public function create(array $user, array $body): array
     {
+        $this->releaseExpiredCheckIns();
+
         $resourceId = self::numericId((string) ($body['resourceId'] ?? ''), 'SR');
         $start = self::timestamp((string) ($body['startTime'] ?? ''));
         $end = self::timestamp((string) ($body['endTime'] ?? ''));
@@ -95,6 +97,8 @@ final class ReservationService
 
     public function cancel(array $user, string $reservationDisplayId): array
     {
+        $this->releaseExpiredCheckIns();
+
         $reservationId = self::numericId($reservationDisplayId, 'RES');
         if ($reservationId === null) {
             return self::error('Reservation not found.', 404);
@@ -158,6 +162,14 @@ final class ReservationService
                     return $this->rollback(self::error('Only pending reservations can be checked in.', 409));
                 }
 
+                if (self::checkInGraceExpired((string) $reservation['start_time'], new DateTimeImmutable())) {
+                    $this->updateReservationStatus($reservationId, 'NO_SHOW');
+                    $this->setResourceStatus((int) $reservation['resource_id'], 'AVAILABLE');
+                    $this->pdo->commit();
+
+                    return self::error('Reservation expired after the 15-minute check-in grace period.', 409);
+                }
+
                 $insert = $this->pdo->prepare('insert into attendance_log (reservation_id, actual_check_in) values (?, ?) on duplicate key update actual_check_in = values(actual_check_in), actual_check_out = null');
                 $insert->execute([$reservationId, self::dbTime(new DateTimeImmutable())]);
                 $this->updateReservationStatus($reservationId, 'ACTIVE');
@@ -179,6 +191,50 @@ final class ReservationService
             return ['status' => 200, 'body' => ['message' => $message]];
         } catch (Exception $exception) {
             if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
+    public function releaseExpiredCheckIns(): int
+    {
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+        }
+
+        try {
+            $statement = $this->pdo->prepare(
+                "select id, resource_id
+                 from reservation
+                 where status in ('PENDING', 'CONFIRMED')
+                   and start_time < date_sub(now(), interval 15 minute)
+                 for update"
+            );
+            $statement->execute();
+            $expired = $statement->fetchAll();
+
+            if ($expired === []) {
+                if ($ownsTransaction) {
+                    $this->pdo->commit();
+                }
+                return 0;
+            }
+
+            $reservationIds = array_map(fn (array $row): int => (int) $row['id'], $expired);
+            $resourceIds = array_values(array_unique(array_map(fn (array $row): int => (int) $row['resource_id'], $expired)));
+
+            $this->updateMany('reservation', 'status', 'NO_SHOW', $reservationIds);
+            $this->updateMany('study_resource', 'status', 'AVAILABLE', $resourceIds, " and status = 'RESERVED'");
+
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+
+            return count($reservationIds);
+        } catch (Exception $exception) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             throw $exception;
@@ -257,6 +313,17 @@ final class ReservationService
         $statement->execute([$status, $resourceId]);
     }
 
+    private function updateMany(string $table, string $column, string $value, array $ids, string $extraWhere = ''): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+        $statement = $this->pdo->prepare("update {$table} set {$column} = ? where id in ({$placeholders}){$extraWhere}");
+        $statement->execute([$value, ...$ids]);
+    }
+
     private function rollback(array $result): array
     {
         $this->pdo->rollBack();
@@ -298,5 +365,15 @@ final class ReservationService
     private static function dbTime(DateTimeImmutable $time): string
     {
         return $time->format('Y-m-d H:i:s');
+    }
+
+    private static function checkInGraceExpired(string $startTime, DateTimeImmutable $now): bool
+    {
+        $start = strtotime($startTime);
+        if ($start === false) {
+            return false;
+        }
+
+        return $now->getTimestamp() > $start + (15 * 60);
     }
 }

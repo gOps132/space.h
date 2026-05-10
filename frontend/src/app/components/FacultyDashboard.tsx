@@ -126,7 +126,7 @@ export default function FacultyDashboard() {
               </a>
             </div>
 
-            <div className="academic-border overflow-hidden rounded-2xl bg-parchment">
+            <div className="academic-border max-h-[34rem] overflow-y-auto rounded-2xl bg-parchment">
               {groupRooms.map((room) => (
                 <RoomCard key={room.resource_id} room={room} onSelect={() => setSelectedRoom(room.resource_id)} selected={selectedRoom === room.resource_id} />
               ))}
@@ -172,7 +172,7 @@ export default function FacultyDashboard() {
 
           <section className="academic-border premium-shadow rounded-2xl bg-parchment p-6">
             <h2 className="mb-6 border-b border-walnut/10 pb-4 text-xl font-serif">Upcoming Bookings</h2>
-            <div className="space-y-6">
+            <div className="max-h-[24rem] space-y-6 overflow-y-auto pr-1">
               {facultyReservations.length > 0 ? (
                 facultyReservations.map((reservation) => (
                   <BookingItem

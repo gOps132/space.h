@@ -342,7 +342,7 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <div className="academic-border overflow-hidden rounded-2xl bg-parchment">
+          <div className="academic-border max-h-[38rem] overflow-y-auto rounded-2xl bg-parchment">
             {filteredResources.map((resource) => (
               <SpaceCard
                 key={resource.resource_id}
