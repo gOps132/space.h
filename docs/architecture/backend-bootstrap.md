@@ -18,6 +18,11 @@ Space.h now uses a plain PHP backend under `backend/`, served by Apache and back
   - creates and verifies HMAC-SHA256 JWT bearer tokens
 - `app/Database.php`
   - opens a PDO connection to MySQL
+- `app/LibraryHoursService.php`
+  - reads and updates library hours
+  - validates reservation windows against local time, 30-minute slots, and the 30-day advance limit
+- `app/ReservationService.php`
+  - creates, cancels, checks in, checks out, and releases expired reservations
 - `app/SeedData.php`
   - inserts demo users, resources, and one reservation when the database is empty
 - `schema/mysql.sql`
@@ -52,5 +57,4 @@ phpMyAdmin uses the local MySQL service:
 - the backend is intentionally framework-light
 - there is no refresh-token flow yet
 - there is no university-side ID verification yet, only format validation
-- role-based route restrictions beyond authentication still need future slices
-- the frontend still uses mock data until API integration is added
+- issue report write routes are not implemented yet

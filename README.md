@@ -58,7 +58,7 @@ The current experience focuses on a polished library workflow: students can find
 .
 ├── frontend/                  React + Vite client
 ├── backend/                   PHP API, Apache public entrypoint, schema
-├── docs/                      Product, architecture, workflow notes, screenshots
+├── docs/                      Product, architecture, API notes, screenshots
 ├── Dockerfile                 Production app image
 ├── Dockerfile.mysql           MySQL image with schema initialization
 ├── docker-compose.yml         Local development stack
@@ -161,7 +161,7 @@ Expected response:
 More project notes live in `docs/`:
 
 - `docs/overview.md`
+- `docs/architecture/authentication-foundations.md`
+- `docs/architecture/backend-bootstrap.md`
 - `docs/architecture/domain-model.md`
 - `docs/architecture/monorepo.md`
-- `docs/development-workflow.md`
-- `docs/guides/ci-and-security.md`

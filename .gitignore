@@ -38,17 +38,14 @@ target
 .gradle
 
 # AI-generated local context artifacts
-.agent/
+.agents/
 AGENTS.md
 PRODUCT.md
 DESIGN.md
 .impeccable.md
-.agents/context/PRODUCT.md
-.agents/context/DESIGN.md
+.agents/context/
 docs/PRODUCT.md
 docs/DESIGN.md
-docs/superpowers/plans/
-docs/superpowers/specs/
 
 # Local git worktrees
 .worktrees/

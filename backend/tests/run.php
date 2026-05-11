@@ -85,6 +85,45 @@ cleanupMaintenanceTestData($pdo);
 $resourceService = new ResourceService($pdo);
 $reservationService = new ReservationService($pdo);
 
+$scopeSuffix = (string) random_int(1000, 9999);
+$facultyScopeUniversityId = "94-{$scopeSuffix}";
+$pdo->beginTransaction();
+try {
+    $pdo->prepare(
+        'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
+    )->execute([$facultyScopeUniversityId, 'Faculty Scope Tester', "faculty-scope-{$scopeSuffix}@spaceh.test", password_hash('test-pass', PASSWORD_DEFAULT), 'FACULTY', 'ACTIVE']);
+    $pdo->prepare(
+        'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
+    )->execute(["93-{$scopeSuffix}", 'Student Scope Tester', "student-scope-{$scopeSuffix}@spaceh.test", password_hash('test-pass', PASSWORD_DEFAULT), 'STUDENT', 'ACTIVE']);
+    $studentScopeUserId = (int) $pdo->lastInsertId();
+
+    $pdo->prepare(
+        'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    )->execute(["Faculty Scope Room {$scopeSuffix}", 'GROUP_ROOM', 'Tests', 1, 'AVAILABLE', 1, 6, 3, 0]);
+    $facultyScopeRoomId = (int) $pdo->lastInsertId();
+
+    $pdo->prepare(
+        'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    )->execute(["Faculty Scope Seat {$scopeSuffix}", 'INDIVIDUAL_SEAT', 'Tests', 1, 'AVAILABLE', 1, null, 1, 0]);
+    $facultyScopeSeatId = (int) $pdo->lastInsertId();
+
+    $scopeStart = (new DateTimeImmutable('+1 day'))->setTime(10, 0)->format('Y-m-d H:i:s');
+    $scopeEnd = (new DateTimeImmutable('+1 day'))->setTime(11, 0)->format('Y-m-d H:i:s');
+    $insertScopeReservation = $pdo->prepare('insert into reservation (user_id, resource_id, start_time, end_time, status) values (?, ?, ?, ?, ?)');
+    $insertScopeReservation->execute([$studentScopeUserId, $facultyScopeRoomId, $scopeStart, $scopeEnd, 'PENDING']);
+    $insertScopeReservation->execute([$studentScopeUserId, $facultyScopeSeatId, $scopeStart, $scopeEnd, 'PENDING']);
+
+    $facultyScopeReservations = (new Spaceh\DataApi($pdo))->reservations(['role' => 'FACULTY', 'universityId' => $facultyScopeUniversityId]);
+    $facultyScopeResourceIds = array_column($facultyScopeReservations, 'resource_id');
+    $facultyCanSeeRoomReservation = in_array('SR' . str_pad((string) $facultyScopeRoomId, 3, '0', STR_PAD_LEFT), $facultyScopeResourceIds, true);
+    $facultyCanSeeOrdinarySeatReservation = in_array('SR' . str_pad((string) $facultyScopeSeatId, 3, '0', STR_PAD_LEFT), $facultyScopeResourceIds, true);
+} finally {
+    $pdo->rollBack();
+}
+
+assertTrue($facultyCanSeeRoomReservation, 'faculty reservation feed includes room reservations owned by other users');
+assertTrue(!$facultyCanSeeOrdinarySeatReservation, 'faculty reservation feed excludes ordinary seat reservations owned by other users');
+
 $suffix = bin2hex(random_bytes(4));
 $pdo->prepare(
     'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
