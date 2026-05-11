@@ -35,6 +35,12 @@ import {
   toTimeInput,
   validateReservationWindow,
 } from "./ReservationTimePicker";
+import {
+  buildReservationRequest,
+  formatReservationRange,
+  hasReservationConflict,
+  parseCoBookerIds,
+} from "../reservations/reservationWorkflow";
 
 export default function StudentDashboard() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -193,34 +199,25 @@ export default function StudentDashboard() {
       }
     }
 
-    const coBookerIds = coBookers.split(",").map((id) => id.trim()).filter(Boolean);
+    const coBookerIds = parseCoBookerIds(coBookers);
     const minimumParticipants = resource.min_participants ?? (resource.resource_type === "Group Study Room" ? 3 : 1);
     if (coBookerIds.length + 1 < minimumParticipants) {
       toast.error(`This room requires at least ${minimumParticipants} participants: you plus ${minimumParticipants - 1} others.`);
       return;
     }
 
-    const hasConflict = reservations.some((reservation) => {
-      if (reservation.resource_id !== resourceId || reservation.booking_status === "Cancelled" || reservation.booking_status === "No-show") {
-        return false;
-      }
-      const existingStart = new Date(reservation.start_time);
-      const existingEnd = new Date(reservation.end_time);
-      return start < existingEnd && end > existingStart;
-    });
-
-    if (hasConflict) {
+    if (hasReservationConflict(reservations, resourceId, start, end)) {
       toast.error("This space is already booked during the selected time.");
       return;
     }
 
     try {
-      await createReservation({
+      await createReservation(buildReservationRequest({
         resourceId,
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
+        startTime,
+        endTime,
         coBookers: coBookerIds,
-      });
+      }));
       await refresh();
       setSelectedResource("");
       setStartTime("");
@@ -318,7 +315,7 @@ export default function StudentDashboard() {
                 <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
                   <div>
                     <p className="mb-1 text-xs uppercase tracking-widest text-parchment/40">Reservation Window</p>
-                    <p className="font-mono text-lg tabular-nums">{formatRange(activeReservation.start_time, activeReservation.end_time)}</p>
+                    <p className="font-mono text-lg tabular-nums">{formatReservationRange(activeReservation.start_time, activeReservation.end_time)}</p>
                   </div>
                   <div>
                     <p className="mb-1 text-xs uppercase tracking-widest text-parchment/40">Status</p>
@@ -593,16 +590,6 @@ function StatusBadge({ status }: { status: StudyResource["current_status"] }) {
   };
 
   return <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${styles[status]}`}>{status}</span>;
-}
-
-function formatRange(start: string, end: string) {
-  const formatter = new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  return `${formatter.format(new Date(start))} - ${formatter.format(new Date(end))}`;
 }
 
 function errorMessage(caught: unknown, fallback: string) {
