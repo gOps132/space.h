@@ -40,6 +40,7 @@ import {
   formatReservationRange,
   hasReservationConflict,
 } from "../reservations/reservationWorkflow";
+import { ReservationResourceCard } from "./ReservationResourceCard";
 
 export default function FacultyDashboard() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -362,9 +363,10 @@ export default function FacultyDashboard() {
 
           <div className="academic-border max-h-[38rem] overflow-y-auto rounded-2xl bg-parchment">
             {filteredRooms.map((room) => (
-              <RoomCard
+              <ReservationResourceCard
                 key={room.resource_id}
-                room={room}
+                extraBadges={facultyRoomBadges(room)}
+                resource={room}
                 selected={selectedRoom === room.resource_id}
                 unavailableReason={isMaintenanceStatus(room) ? "Maintenance" : undefined}
                 onSelect={() => setSelectedRoom((current) => current === room.resource_id ? "" : room.resource_id)}
@@ -447,53 +449,27 @@ function StatusMetric({ label, value, tone }: { label: string; value: string; to
   );
 }
 
-function RoomCard({ room, selected, unavailableReason, onSelect }: { room: StudyResource; selected: boolean; unavailableReason?: string; onSelect: () => void }) {
-  const canChoose = !unavailableReason;
-
-  return (
-    <article className={`grid gap-4 border-b border-walnut/5 p-4 transition-colors last:border-b-0 sm:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.8fr)_auto] sm:items-center sm:px-5 ${canChoose ? "bg-parchment hover:bg-walnut/[0.025]" : "bg-walnut/5 opacity-75"} ${selected ? "relative z-10 bg-oxblood/[0.04] ring-2 ring-inset ring-oxblood/25" : ""}`}>
-      <div className="min-w-0">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <p className="truncate text-[10px] font-semibold uppercase tracking-widest text-walnut/40">
-            Floor {room.floor} - {room.zone_location}
-          </p>
-          <StatusBadge status={room.current_status} />
-        </div>
-        <h3 className="truncate text-xl font-serif">{room.resource_name}</h3>
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-xs font-medium text-walnut/60">
-        {room.capacity && <span className="flex items-center gap-1.5 rounded-md bg-walnut/5 px-2 py-1"><Users className="h-3.5 w-3.5" aria-hidden="true" /> Fits {room.capacity}</span>}
-        {room.min_participants && room.min_participants > 1 && <span className="flex items-center gap-1.5 rounded-md bg-walnut/5 px-2 py-1"><Users className="h-3.5 w-3.5" aria-hidden="true" /> Min {room.min_participants}</span>}
-        {room.resource_type === "Consultation Room" && <span className="rounded-md bg-oxblood/10 px-2 py-1 text-oxblood">Consultation</span>}
-        {room.is_faculty_exclusive && <span className="rounded-md bg-candlelight/15 px-2 py-1 text-walnut">Faculty Priority</span>}
-        {!room.is_faculty_exclusive && room.resource_type !== "Consultation Room" && <span className="rounded-md bg-walnut/5 px-2 py-1">General Room</span>}
-        {unavailableReason && <span className="rounded-md bg-oxblood/10 px-2 py-1 text-oxblood">{unavailableReason}</span>}
-      </div>
-
-      <div className="flex items-center justify-between gap-4 sm:justify-end">
-        <span className="text-[10px] uppercase tracking-widest text-walnut/35">{room.resource_id}</span>
-        <button
-          type="button"
-          onClick={onSelect}
-          disabled={!canChoose}
-          className={`rounded-lg px-5 py-2 text-sm font-semibold tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oxblood/20 ${
-            canChoose ? "bg-walnut text-parchment hover:bg-oxblood" : "cursor-not-allowed bg-walnut/10 text-walnut/40"
-          }`}
-        >
-          {selected ? "Selected" : canChoose ? "Select" : unavailableReason ?? "Locked"}
-        </button>
-      </div>
-    </article>
-  );
-}
-
 function isMaintenanceStatus(room: StudyResource) {
   return room.current_status === "Under Maintenance" || room.current_status === "Maintenance Pending";
 }
 
 function isFacultyReservableResource(resource: StudyResource) {
   return resource.resource_type === "Group Study Room" || resource.resource_type === "Consultation Room" || Boolean(resource.is_faculty_exclusive);
+}
+
+function facultyRoomBadges(resource: StudyResource) {
+  if (resource.resource_type === "Consultation Room") {
+    return [
+      { label: "Consultation", tone: "danger" as const },
+      ...(resource.is_faculty_exclusive ? [{ label: "Faculty Priority", tone: "warm" as const }] : []),
+    ];
+  }
+
+  if (resource.is_faculty_exclusive) {
+    return [{ label: "Faculty Priority", tone: "warm" as const }];
+  }
+
+  return [{ label: "General Room", tone: "default" as const }];
 }
 
 function SelectField({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {
@@ -536,18 +512,6 @@ function TextField({ id, label, value, onChange, type = "text", placeholder, min
       />
     </div>
   );
-}
-
-function StatusBadge({ status }: { status: StudyResource["current_status"] }) {
-  const styles: Record<StudyResource["current_status"], string> = {
-    Available: "bg-moss/10 text-moss",
-    Occupied: "bg-walnut/10 text-walnut/50",
-    Reserved: "bg-oxblood/10 text-oxblood",
-    "Under Maintenance": "bg-candlelight/15 text-walnut",
-    "Maintenance Pending": "bg-candlelight/15 text-walnut",
-  };
-
-  return <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${styles[status]}`}>{status}</span>;
 }
 
 function errorMessage(caught: unknown, fallback: string) {
