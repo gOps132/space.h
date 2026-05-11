@@ -10,10 +10,9 @@
   - API gateway, MySQL persistence, and production-style Apache site host
 - `docs/`
   - architecture notes
-  - setup guides
-  - domain and process documentation
-- `.agent/`
-  - repository rules for agentic workflows, CI, and security audits
+  - human-facing product, API, and domain documentation
+- `.agents/`
+  - local agent rules, workflow notes, CI policy, security audit policy, and context
 
 ## Why This Shape
 
