@@ -66,7 +66,7 @@ export default function FacultyDashboard() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const groupRooms = resources.filter((resource) => resource.resource_type === "Group Study Room" || resource.resource_type === "Consultation Room");
+  const groupRooms = resources.filter(isFacultyReservableResource);
   const facultyReservations = reservations.filter((reservation) => reservation.user_id === currentUser?.userId);
   const selectedRoomDetails = selectedRoom ? resources.find((resource) => resource.resource_id === selectedRoom) : undefined;
   const selectedRoomReservations = useMemo(() => getBlockingReservationsForResource(reservations, selectedRoom, bookingDate), [bookingDate, reservations, selectedRoom]);
@@ -328,6 +328,10 @@ function RoomCard({ room, selected, onSelect }: { room: StudyResource; selected:
 
 function isMaintenanceStatus(room: StudyResource) {
   return room.current_status === "Under Maintenance" || room.current_status === "Maintenance Pending";
+}
+
+function isFacultyReservableResource(resource: StudyResource) {
+  return resource.resource_type === "Group Study Room" || resource.resource_type === "Consultation Room" || Boolean(resource.is_faculty_exclusive);
 }
 
 function SelectField({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {

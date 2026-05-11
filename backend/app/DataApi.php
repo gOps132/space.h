@@ -40,9 +40,15 @@ final class DataApi
 
         $sql = 'select r.id, r.user_id, r.resource_id, r.start_time, r.end_time, r.status, r.created_at
                 from reservation r
-                join app_user u on u.id = r.user_id';
+                join app_user u on u.id = r.user_id
+                join study_resource sr on sr.id = r.resource_id';
         $params = [];
-        if ($user !== null && ($user['role'] ?? '') !== 'ADMIN') {
+        if ($user !== null && ($user['role'] ?? '') === 'FACULTY') {
+            $sql .= " where u.university_id = ?
+                       or sr.resource_type in ('GROUP_ROOM', 'CONSULTATION_ROOM')
+                       or sr.faculty_exclusive = 1";
+            $params[] = $user['universityId'];
+        } elseif ($user !== null && ($user['role'] ?? '') !== 'ADMIN') {
             $sql .= ' where u.university_id = ?';
             $params[] = $user['universityId'];
         }
