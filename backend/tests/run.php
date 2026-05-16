@@ -29,6 +29,7 @@ function cleanupMaintenanceTestData(PDO $pdo): void
          where sr.resource_name like 'Occupied Maintenance %'
             or sr.resource_name like 'Available Maintenance %'
             or sr.resource_name like 'Window Validation %'
+            or sr.resource_name like 'Booking %'
             or u.email like 'maintenance-%@spaceh.test'
             or u.email like 'booking-%@spaceh.test'
             or u.email like 'window-%@spaceh.test'"
@@ -42,6 +43,7 @@ function cleanupMaintenanceTestData(PDO $pdo): void
          where sr.resource_name like 'Occupied Maintenance %'
             or sr.resource_name like 'Available Maintenance %'
             or sr.resource_name like 'Window Validation %'
+            or sr.resource_name like 'Booking %'
             or u.email like 'maintenance-%@spaceh.test'
             or u.email like 'booking-%@spaceh.test'
             or u.email like 'window-%@spaceh.test'"
@@ -54,11 +56,12 @@ function cleanupMaintenanceTestData(PDO $pdo): void
          where sr.resource_name like 'Occupied Maintenance %'
             or sr.resource_name like 'Available Maintenance %'
             or sr.resource_name like 'Window Validation %'
+            or sr.resource_name like 'Booking %'
             or u.email like 'maintenance-%@spaceh.test'
             or u.email like 'booking-%@spaceh.test'
             or u.email like 'window-%@spaceh.test'"
     );
-    $pdo->exec("delete from study_resource where resource_name like 'Occupied Maintenance %' or resource_name like 'Available Maintenance %' or resource_name like 'Window Validation %'");
+    $pdo->exec("delete from study_resource where resource_name like 'Occupied Maintenance %' or resource_name like 'Available Maintenance %' or resource_name like 'Window Validation %' or resource_name like 'Booking %'");
     $pdo->exec("delete from app_user where email like 'maintenance-%@spaceh.test' or email like 'booking-%@spaceh.test' or email like 'window-%@spaceh.test'");
 }
 
@@ -133,11 +136,122 @@ $userId = (int) $pdo->lastInsertId();
 $pdo->prepare(
     'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
 )->execute(["97-{$suffix}", 'Booking Tester', "booking-{$suffix}@spaceh.test", password_hash('test-pass', PASSWORD_DEFAULT), 'STUDENT', 'ACTIVE']);
+$bookingOwnerUniversityId = "97-{$suffix}";
+
+$pdo->prepare(
+    'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
+)->execute(["97-{$suffix}-01", 'Booking Group Member One', "booking-member-one-{$suffix}@spaceh.test", password_hash('test-pass', PASSWORD_DEFAULT), 'STUDENT', 'ACTIVE']);
+$bookingMemberOneUniversityId = "97-{$suffix}-01";
+
+$pdo->prepare(
+    'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
+)->execute(["97-{$suffix}-02", 'Booking Group Member Two', "booking-member-two-{$suffix}@spaceh.test", password_hash('test-pass', PASSWORD_DEFAULT), 'STUDENT', 'ACTIVE']);
+$bookingMemberTwoUniversityId = "97-{$suffix}-02";
+
+$pdo->prepare(
+    'insert into app_user (university_id, full_name, email, password_hash, role, account_status) values (?, ?, ?, ?, ?, ?)'
+)->execute(["97-{$suffix}-03", 'Booking Alternate Owner', "booking-alt-owner-{$suffix}@spaceh.test", password_hash('test-pass', PASSWORD_DEFAULT), 'STUDENT', 'ACTIVE']);
+$bookingAltOwnerUniversityId = "97-{$suffix}-03";
 
 SeedData::ensure($pdo);
 $demoAdmin = $pdo->prepare("select count(*) from app_user where university_id = '22-7777-03' and role = 'ADMIN'");
 $demoAdmin->execute();
 assertTrue((int) $demoAdmin->fetchColumn() === 1, 'seed data ensures demo admin even when test users already exist');
+$seededStudents = $pdo->query("select count(*) from app_user where university_id between '24-0002-01' and '24-0011-01' and role = 'STUDENT'")->fetchColumn();
+$seededFaculty = $pdo->query("select count(*) from app_user where university_id between '23-2001-01' and '23-2010-01' and role = 'FACULTY'")->fetchColumn();
+assertTrue((int) $seededStudents === 10, 'seed data includes ten extra student users');
+assertTrue((int) $seededFaculty === 10, 'seed data includes ten extra faculty users');
+
+$pdo->prepare(
+    'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+)->execute(["Booking Group Room {$suffix}", 'GROUP_ROOM', 'Tests', 1, 'AVAILABLE', 1, 6, 3, 0]);
+$groupResourceId = (int) $pdo->lastInsertId();
+$groupResourceDisplayId = 'SR' . str_pad((string) $groupResourceId, 3, '0', STR_PAD_LEFT);
+
+$pdo->prepare(
+    'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+)->execute(["Booking Alternate Room {$suffix}", 'GROUP_ROOM', 'Tests', 1, 'AVAILABLE', 1, 6, 3, 0]);
+$alternateGroupResourceId = (int) $pdo->lastInsertId();
+$alternateGroupResourceDisplayId = 'SR' . str_pad((string) $alternateGroupResourceId, 3, '0', STR_PAD_LEFT);
+
+$testTimezone = new DateTimeZone('Asia/Manila');
+$groupStart = (new DateTimeImmutable('now', $testTimezone))->modify('+2 days')->setTime(10, 0);
+$groupEnd = $groupStart->modify('+1 hour');
+$invalidCoBookerResponse = $reservationService->create(
+    ['universityId' => $bookingOwnerUniversityId, 'role' => 'STUDENT'],
+    [
+        'resourceId' => $groupResourceDisplayId,
+        'startTime' => $groupStart->format(DateTimeInterface::ATOM),
+        'endTime' => $groupEnd->format(DateTimeInterface::ATOM),
+        'coBookers' => [$bookingMemberOneUniversityId, "missing-{$suffix}"],
+    ]
+);
+assertTrue($invalidCoBookerResponse['status'] === 422, 'backend rejects co-booker IDs that are not registered users');
+
+$selfCoBookerResponse = $reservationService->create(
+    ['universityId' => $bookingOwnerUniversityId, 'role' => 'STUDENT'],
+    [
+        'resourceId' => $groupResourceDisplayId,
+        'startTime' => $groupStart->format(DateTimeInterface::ATOM),
+        'endTime' => $groupEnd->format(DateTimeInterface::ATOM),
+        'coBookers' => [$bookingOwnerUniversityId, $bookingMemberOneUniversityId],
+    ]
+);
+assertTrue($selfCoBookerResponse['status'] === 422, 'backend rejects owner as their own co-booker');
+
+$duplicateCoBookerResponse = $reservationService->create(
+    ['universityId' => $bookingOwnerUniversityId, 'role' => 'STUDENT'],
+    [
+        'resourceId' => $groupResourceDisplayId,
+        'startTime' => $groupStart->format(DateTimeInterface::ATOM),
+        'endTime' => $groupEnd->format(DateTimeInterface::ATOM),
+        'coBookers' => [$bookingMemberOneUniversityId, $bookingMemberOneUniversityId],
+    ]
+);
+assertTrue($duplicateCoBookerResponse['status'] === 422, 'backend rejects duplicate co-bookers');
+
+$groupBookingResponse = $reservationService->create(
+    ['universityId' => $bookingOwnerUniversityId, 'role' => 'STUDENT'],
+    [
+        'resourceId' => $groupResourceDisplayId,
+        'startTime' => $groupStart->format(DateTimeInterface::ATOM),
+        'endTime' => $groupEnd->format(DateTimeInterface::ATOM),
+        'coBookers' => [$bookingMemberOneUniversityId, $bookingMemberTwoUniversityId],
+    ]
+);
+assertTrue($groupBookingResponse['status'] === 201, 'backend creates group booking with registered co-bookers');
+
+$participantBookingResponse = $reservationService->create(
+    ['universityId' => $bookingMemberOneUniversityId, 'role' => 'STUDENT'],
+    [
+        'resourceId' => $alternateGroupResourceDisplayId,
+        'startTime' => $groupStart->modify('+2 hours')->format(DateTimeInterface::ATOM),
+        'endTime' => $groupEnd->modify('+2 hours')->format(DateTimeInterface::ATOM),
+        'coBookers' => [$bookingAltOwnerUniversityId, $bookingMemberTwoUniversityId],
+    ]
+);
+assertTrue(
+    $participantBookingResponse['status'] === 409,
+    'co-booker is treated as booked and cannot create another active booking: ' . $participantBookingResponse['status'] . ' ' . ($participantBookingResponse['body']['message'] ?? '')
+);
+
+$coBookerConflictResponse = $reservationService->create(
+    ['universityId' => $bookingAltOwnerUniversityId, 'role' => 'STUDENT'],
+    [
+        'resourceId' => $alternateGroupResourceDisplayId,
+        'startTime' => $groupStart->modify('+3 hours')->format(DateTimeInterface::ATOM),
+        'endTime' => $groupEnd->modify('+3 hours')->format(DateTimeInterface::ATOM),
+        'coBookers' => [$bookingMemberOneUniversityId, $bookingMemberTwoUniversityId],
+    ]
+);
+assertTrue($coBookerConflictResponse['status'] === 409, 'backend rejects co-bookers who already have an active group booking');
+
+$participantReservations = (new Spaceh\DataApi($pdo))->reservations(['role' => 'STUDENT', 'universityId' => $bookingMemberOneUniversityId]);
+$participantReservation = $participantReservations[0] ?? null;
+assertTrue($participantReservation !== null && $participantReservation['reservation_id'] === $groupBookingResponse['body']['reservationId'], 'co-booker sees group booking in reservation feed');
+assertTrue(($participantReservation['user_name'] ?? null) === 'Booking Tester', 'reservation feed includes booking owner name');
+assertTrue(($participantReservation['current_user_role'] ?? null) === 'co_booker', 'co-booker reservation feed marks current user as co-booker');
+assertTrue(($participantReservation['co_bookers'][0]['full_name'] ?? null) === 'Booking Group Member One', 'reservation feed includes co-booker names');
 
 $pdo->prepare(
     'insert into study_resource (resource_name, resource_type, zone_location, floor, status, has_power_outlet, capacity, min_participants, faculty_exclusive) values (?, ?, ?, ?, ?, ?, ?, ?, ?)'
