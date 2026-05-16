@@ -137,6 +137,71 @@ export default function EnhancedAdminDashboard() {
     return matchesQuery && matchesStatus;
   });
 
+  const exportSnapshot = useMemo(() => {
+    const resourceById = new Map(resources.map((resource) => [resource.resource_id, resource]));
+    const attendanceByReservationId = new Map(attendanceLogs.map((log) => [log.reservation_id, log]));
+    const activeAttendanceLogs = attendanceLogs.filter((log) => log.actual_check_in && !log.actual_check_out);
+    const unavailableResources = resources.filter((resource) => resource.current_status !== "Available");
+
+    return {
+      meta: {
+        app: "Space.h",
+        syncState,
+        filters: {
+          resourceSearch: query || null,
+          reservationSearch: reservationQuery || null,
+          reservationStatus,
+        },
+      },
+      summary: {
+        totalResources: resources.length,
+        availableResources: resources.filter((resource) => resource.current_status === "Available").length,
+        unavailableResources: unavailableResources.length,
+        totalReservations: reservations.length,
+        pendingReservations: metrics.pendingReservations,
+        activeReservations: reservations.filter((reservation) => reservation.booking_status === "Active").length,
+        noShows: metrics.noShows,
+        attendanceLogs: attendanceLogs.length,
+        activeAttendanceLogs: activeAttendanceLogs.length,
+        occupancyRate: metrics.occupancyRate,
+        maintenanceAlerts: metrics.maintenanceAlerts,
+      },
+      breakdowns: {
+        resourcesByType: countBy(resources, (resource) => resource.resource_type),
+        resourcesByStatus: countBy(resources, (resource) => resource.current_status),
+        resourcesByFloor: countBy(resources, (resource) => `Level ${resource.floor}`),
+        resourcesByZone: countBy(resources, (resource) => resource.zone_location),
+        reservationsByStatus: countBy(reservations, (reservation) => reservation.booking_status),
+      },
+      libraryHours,
+      dashboard,
+      resources,
+      reservations: reservations.map((reservation) => {
+        const resource = resourceById.get(reservation.resource_id);
+        const attendance = attendanceByReservationId.get(reservation.reservation_id);
+
+        return {
+          ...reservation,
+          resource: resource
+            ? {
+                resource_id: resource.resource_id,
+                resource_name: resource.resource_name,
+                resource_type: resource.resource_type,
+                zone_location: resource.zone_location,
+                floor: resource.floor,
+              }
+            : null,
+          attendance: attendance ?? null,
+        };
+      }),
+      attendanceLogs,
+      filteredView: {
+        resourceIds: filteredResources.map((resource) => resource.resource_id),
+        reservationIds: filteredReservations.map((reservation) => reservation.reservation_id),
+      },
+    };
+  }, [attendanceLogs, dashboard, filteredReservations, filteredResources, libraryHours, metrics, query, reservationQuery, reservationStatus, reservations, resources, syncState]);
+
   const updateStatus = async (resourceId: string, status: StudyResource["current_status"]) => {
     try {
       const result = await updateResourceStatus(resourceId, status);
@@ -253,14 +318,16 @@ export default function EnhancedAdminDashboard() {
   };
 
   const exportData = () => {
-    const blob = new Blob([JSON.stringify(resources, null, 2)], { type: "application/json" });
+    const exportedAt = new Date().toISOString();
+    const payload = { ...exportSnapshot, meta: { ...exportSnapshot.meta, exportedAt } };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "spaceh-resources.json";
+    anchor.download = `spaceh-operations-${formatExportDate(exportedAt)}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
-    toast.success("Resource data exported.");
+    toast.success("Operations data exported.");
   };
 
   return (
@@ -616,6 +683,18 @@ function resourceToForm(resource: StudyResource): ResourceFormState {
     hasPowerOutlet: Boolean(resource.has_power_outlet),
     isFacultyExclusive: Boolean(resource.is_faculty_exclusive),
   };
+}
+
+function countBy<Item>(items: Item[], getKey: (item: Item) => string): Record<string, number> {
+  return items.reduce<Record<string, number>>((counts, item) => {
+    const key = getKey(item);
+    counts[key] = (counts[key] ?? 0) + 1;
+    return counts;
+  }, {});
+}
+
+function formatExportDate(value: string): string {
+  return value.replace(/[:.]/g, "-");
 }
 
 function ReservationMobileCard({
