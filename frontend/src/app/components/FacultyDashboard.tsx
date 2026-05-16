@@ -42,7 +42,10 @@ import {
   isReservationOwner,
   reservationIncludesUser,
 } from "../reservations/reservationWorkflow";
+import { LoadMoreFooter } from "./ListControls";
 import { ReservationResourceCard } from "./ReservationResourceCard";
+
+const ROOM_BATCH_SIZE = 10;
 
 export default function FacultyDashboard() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -55,6 +58,7 @@ export default function FacultyDashboard() {
   const [filterZone, setFilterZone] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [facultyPriorityOnly, setFacultyPriorityOnly] = useState(false);
+  const [visibleRoomCount, setVisibleRoomCount] = useState(ROOM_BATCH_SIZE);
   const [selectedRoom, setSelectedRoom] = useState("");
   const [bookingDate, setBookingDate] = useState(todayInputDate());
   const [slotDurationMinutes, setSlotDurationMinutes] = useState(60);
@@ -110,6 +114,10 @@ export default function FacultyDashboard() {
       return matchesSearch && matchesFloor && matchesZone && matchesFacultyPriority;
     });
   }, [facultyPriorityOnly, filterFloor, filterZone, groupRooms, searchQuery]);
+  useEffect(() => {
+    setVisibleRoomCount(ROOM_BATCH_SIZE);
+  }, [facultyPriorityOnly, filterFloor, filterZone, searchQuery]);
+  const visibleRooms = filteredRooms.slice(0, visibleRoomCount);
   const reservableRooms = groupRooms.filter((room) => !isMaintenanceStatus(room));
   const selectedRoomDetails = selectedRoom ? groupRooms.find((resource) => resource.resource_id === selectedRoom) : undefined;
   const selectedRoomReservations = useMemo(() => getBlockingReservationsForResource(reservations, selectedRoom, bookingDate), [bookingDate, reservations, selectedRoom]);
@@ -373,7 +381,7 @@ export default function FacultyDashboard() {
           </div>
 
           <div className="academic-border max-h-[38rem] overflow-y-auto rounded-2xl bg-parchment">
-            {filteredRooms.map((room) => (
+            {visibleRooms.map((room) => (
               <ReservationResourceCard
                 key={room.resource_id}
                 extraBadges={facultyRoomBadges(room)}
@@ -383,6 +391,12 @@ export default function FacultyDashboard() {
                 onSelect={() => setSelectedRoom((current) => current === room.resource_id ? "" : room.resource_id)}
               />
             ))}
+            <LoadMoreFooter
+              label="rooms"
+              totalItems={filteredRooms.length}
+              visibleItems={visibleRooms.length}
+              onLoadMore={() => setVisibleRoomCount((count) => count + ROOM_BATCH_SIZE)}
+            />
           </div>
         </div>
 

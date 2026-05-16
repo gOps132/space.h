@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { AlertCircle, BarChart3, CalendarClock, ChevronDown, Download, MoreVertical, Pencil, Plus, Search, Settings, Trash2, Users, Wrench } from "lucide-react";
+import { AlertCircle, CalendarClock, ChevronDown, Download, MoreVertical, Pencil, Plus, Search, Settings, Trash2, Users, Wrench } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { getPageItems, PaginationControls } from "./ListControls";
 import {
   dashboardData,
   defaultLibraryHours,
@@ -65,6 +66,10 @@ export default function EnhancedAdminDashboard() {
   const [query, setQuery] = useState("");
   const [reservationQuery, setReservationQuery] = useState("");
   const [reservationStatus, setReservationStatus] = useState<ReservationTransaction["booking_status"] | "All">("All");
+  const [reservationPage, setReservationPage] = useState(1);
+  const [reservationPageSize, setReservationPageSize] = useState(10);
+  const [resourcePage, setResourcePage] = useState(1);
+  const [resourcePageSize, setResourcePageSize] = useState(10);
   const [isResourceDialogOpen, setIsResourceDialogOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<StudyResource | null>(null);
   const [deletingResource, setDeletingResource] = useState<StudyResource | null>(null);
@@ -146,6 +151,17 @@ export default function EnhancedAdminDashboard() {
 
     return matchesQuery && matchesStatus;
   });
+
+  useEffect(() => {
+    setReservationPage(1);
+  }, [reservationPageSize, reservationQuery, reservationStatus]);
+
+  useEffect(() => {
+    setResourcePage(1);
+  }, [query, resourcePageSize]);
+
+  const { pageItems: pagedReservations, safePage: safeReservationPage } = getPageItems(filteredReservations, reservationPage, reservationPageSize);
+  const { pageItems: pagedResources, safePage: safeResourcePage } = getPageItems(filteredResources, resourcePage, resourcePageSize);
 
   const exportSnapshot = useMemo(() => {
     const resourceById = new Map(resources.map((resource) => [resource.resource_id, resource]));
@@ -515,7 +531,7 @@ export default function EnhancedAdminDashboard() {
           {filteredReservations.length === 0 ? (
             <p className="p-5 text-sm italic text-walnut/45">No reservations match this view.</p>
           ) : (
-            filteredReservations.map((reservation) => (
+            pagedReservations.map((reservation) => (
               <ReservationMobileCard
                 key={reservation.reservation_id}
                 attendance={attendanceLogs.find((log) => log.reservation_id === reservation.reservation_id)}
@@ -545,7 +561,7 @@ export default function EnhancedAdminDashboard() {
                   <td colSpan={7} className="p-6 text-sm italic text-walnut/45">No reservations match this view.</td>
                 </tr>
               ) : (
-                filteredReservations.map((reservation) => {
+                pagedReservations.map((reservation) => {
                   const resource = resources.find((item) => item.resource_id === reservation.resource_id);
                   const attendance = attendanceLogs.find((log) => log.reservation_id === reservation.reservation_id);
 
@@ -569,10 +585,14 @@ export default function EnhancedAdminDashboard() {
           </table>
         </div>
 
-        <div className="flex items-center justify-between border-t border-walnut/10 bg-walnut/5 p-5 text-xs text-walnut/45">
-          <p>Showing {filteredReservations.length} of {reservations.length} reservation records</p>
-          <CalendarClock className="h-4 w-4" aria-hidden="true" />
-        </div>
+        <PaginationControls
+          label="reservation records"
+          page={safeReservationPage}
+          pageSize={reservationPageSize}
+          totalItems={filteredReservations.length}
+          onPageChange={setReservationPage}
+          onPageSizeChange={setReservationPageSize}
+        />
       </section>
 
       <section className="academic-border premium-shadow overflow-hidden rounded-2xl bg-parchment">
@@ -594,7 +614,7 @@ export default function EnhancedAdminDashboard() {
         </div>
 
         <div className="max-h-[38rem] divide-y divide-walnut/5 overflow-y-auto md:hidden">
-          {filteredResources.map((resource) => (
+          {pagedResources.map((resource) => (
             <ResourceMobileCard
               key={resource.resource_id}
               resource={resource}
@@ -619,7 +639,7 @@ export default function EnhancedAdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-walnut/5">
-              {filteredResources.map((resource) => (
+              {pagedResources.map((resource) => (
                 <tr key={resource.resource_id} className="transition-colors hover:bg-walnut/[0.02]">
                   <td className="p-5 font-mono text-sm text-walnut/60">{resource.resource_id}</td>
                   <td className="p-5"><span className="font-serif text-lg text-walnut">{resource.resource_name}</span></td>
@@ -664,10 +684,15 @@ export default function EnhancedAdminDashboard() {
           </table>
         </div>
 
-        <div className="flex items-center justify-between border-t border-walnut/10 bg-walnut/5 p-5 text-xs text-walnut/45">
-          <p>Showing {filteredResources.length} of {resources.length} library resources</p>
-          <BarChart3 className="h-4 w-4" aria-hidden="true" />
-        </div>
+        <PaginationControls
+          label="library resources"
+          page={safeResourcePage}
+          pageSize={resourcePageSize}
+          pageSizeOptions={[10]}
+          totalItems={filteredResources.length}
+          onPageChange={setResourcePage}
+          onPageSizeChange={setResourcePageSize}
+        />
       </section>
 
       <AddResourceDialog

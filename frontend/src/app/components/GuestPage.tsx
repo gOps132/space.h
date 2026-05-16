@@ -3,10 +3,14 @@ import { LogIn, MapPin, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getResources } from "../api/client";
 import { enhancedResources, type StudyResource } from "../data/enhancedMockData";
+import { LoadMoreFooter } from "./ListControls";
+
+const PUBLIC_RESOURCE_BATCH_SIZE = 10;
 
 export default function GuestPage() {
   const [resources, setResources] = useState<StudyResource[]>(enhancedResources);
   const [syncState, setSyncState] = useState<"live" | "fallback">("fallback");
+  const [visibleResourceCount, setVisibleResourceCount] = useState(PUBLIC_RESOURCE_BATCH_SIZE);
 
   useEffect(() => {
     getResources()
@@ -20,11 +24,16 @@ export default function GuestPage() {
       });
   }, []);
 
+  useEffect(() => {
+    setVisibleResourceCount(PUBLIC_RESOURCE_BATCH_SIZE);
+  }, [resources.length]);
+
   const floorData = useMemo(() => getFloorHeatmap(resources), [resources]);
   const occupied = resources.filter((resource) => resource.current_status === "Occupied" || resource.current_status === "Reserved" || resource.current_status === "Maintenance Pending").length;
   const occupancyPercent = Math.round((occupied / resources.length) * 100);
   const availableSeats = resources.filter((resource) => resource.resource_type === "Individual Seat" && resource.current_status === "Available").length;
   const availableRooms = resources.filter((resource) => resource.resource_type === "Group Study Room" && resource.current_status === "Available").length;
+  const visibleResources = resources.slice(0, visibleResourceCount);
 
   return (
     <div className="mx-auto max-w-7xl space-y-10 px-4 py-10 sm:px-6 lg:px-8">
@@ -54,9 +63,15 @@ export default function GuestPage() {
             <span className="text-sm text-walnut/45">{resources.length} tracked</span>
           </div>
           <div className="max-h-[42rem] divide-y divide-walnut/5 overflow-y-auto">
-            {resources.map((space) => (
+            {visibleResources.map((space) => (
               <SpaceRow key={space.resource_id} space={space} />
             ))}
+            <LoadMoreFooter
+              label="spaces"
+              totalItems={resources.length}
+              visibleItems={visibleResources.length}
+              onLoadMore={() => setVisibleResourceCount((count) => count + PUBLIC_RESOURCE_BATCH_SIZE)}
+            />
           </div>
         </section>
 
