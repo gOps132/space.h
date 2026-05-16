@@ -45,6 +45,33 @@ export function parseCoBookerIds(value: string) {
   return value.split(",").map((id) => id.trim()).filter(Boolean);
 }
 
+export function reservationIncludesUser(
+  reservation: ReservationTransaction,
+  user: { userId: string; universityId: string } | null | undefined,
+) {
+  if (!user) {
+    return false;
+  }
+
+  return (
+    reservation.user_id === user.userId ||
+    reservation.user_university_id === user.universityId ||
+    reservation.current_user_role === "co_booker" ||
+    Boolean(reservation.co_bookers?.some((coBooker) => coBooker.university_id === user.universityId))
+  );
+}
+
+export function isReservationOwner(
+  reservation: ReservationTransaction,
+  user: { userId: string; universityId: string } | null | undefined,
+) {
+  if (!user) {
+    return false;
+  }
+
+  return reservation.user_id === user.userId || reservation.user_university_id === user.universityId || reservation.current_user_role === "owner";
+}
+
 export function formatReservationRange(start: string, end: string) {
   const formatter = new Intl.DateTimeFormat(undefined, {
     month: "short",

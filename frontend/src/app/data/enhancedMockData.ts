@@ -22,15 +22,23 @@ export interface StudyResource {
   is_faculty_exclusive?: boolean;
 }
 
+export interface ReservationParticipant {
+  university_id: string;
+  full_name: string | null;
+}
+
 export interface ReservationTransaction {
   reservation_id: string;
   user_id: string;
+  user_university_id?: string;
+  user_name?: string;
+  current_user_role?: 'owner' | 'co_booker' | 'viewer';
   resource_id: string;
   start_time: string;
   end_time: string;
   booking_status: 'Pending' | 'Active' | 'Completed' | 'Cancelled' | 'No-show';
   created_at: string;
-  co_bookers?: string[]; // For group study rooms (student IDs)
+  co_bookers?: ReservationParticipant[]; // For group study rooms.
 }
 
 export interface AttendanceLogTransaction {
@@ -140,7 +148,13 @@ export const enhancedReservations: ReservationTransaction[] = [
     end_time: '2026-02-27T15:00:00',
     booking_status: 'Active',
     created_at: '2026-02-27T10:00:00',
-    co_bookers: ['U005', 'U009', 'U010'],
+    user_name: 'Alice Johnson',
+    current_user_role: 'owner',
+    co_bookers: [
+      { university_id: '24-0005-01', full_name: 'Bob Wilson' },
+      { university_id: '24-0009-01', full_name: 'Mike Chen' },
+      { university_id: '24-0010-01', full_name: 'Emma Davis' },
+    ],
   },
   {
     reservation_id: 'RES004',

@@ -52,7 +52,7 @@ final class ReservationService
                 return $this->rollback(self::error('Faculty-exclusive rooms require faculty access.', 403));
             }
 
-            if ($this->hasActiveReservation((int) $dbUser['id'])) {
+            if ($this->hasActiveReservation((string) $dbUser['university_id'])) {
                 return $this->rollback(self::error('Only one active reservation is allowed at a time.', 409));
             }
 
@@ -65,6 +65,11 @@ final class ReservationService
             $minimumParticipants = max(1, (int) $resource['min_participants']);
             if ($dbUser['role'] === 'STUDENT' && $participants < $minimumParticipants) {
                 return $this->rollback(self::error("This room requires at least {$minimumParticipants} participants.", 422));
+            }
+
+            $coBookerValidation = $this->validateCoBookers((string) $dbUser['university_id'], $coBookers);
+            if ($coBookerValidation !== null) {
+                return $this->rollback($coBookerValidation);
             }
 
             if ($this->hasResourceConflict($resourceId, $start, $end)) {
@@ -270,12 +275,67 @@ final class ReservationService
         return $resource === false ? null : $resource;
     }
 
-    private function hasActiveReservation(int $userId): bool
+    private function hasActiveReservation(string $universityId): bool
     {
-        $statement = $this->pdo->prepare("select count(*) from reservation where user_id = ? and status in ('PENDING', 'ACTIVE', 'CONFIRMED') and end_time > now()");
-        $statement->execute([$userId]);
+        $statement = $this->pdo->prepare(
+            "select count(*)
+             from reservation r
+             join app_user u on u.id = r.user_id
+             where r.status in ('PENDING', 'ACTIVE', 'CONFIRMED')
+               and r.end_time > now()
+               and (
+                   u.university_id = ?
+                   or exists (
+                       select 1
+                       from reservation_participant rp
+                       where rp.reservation_id = r.id
+                         and rp.participant_university_id = ?
+                   )
+               )"
+        );
+        $statement->execute([$universityId, $universityId]);
 
         return (int) $statement->fetchColumn() > 0;
+    }
+
+    private function validateCoBookers(string $ownerUniversityId, array $coBookers): ?array
+    {
+        if ($coBookers === []) {
+            return null;
+        }
+
+        if (in_array($ownerUniversityId, $coBookers, true)) {
+            return self::error('Owner cannot be listed as a co-booker.', 422);
+        }
+
+        if (count($coBookers) !== count(array_unique($coBookers))) {
+            return self::error('Co-booker IDs must be unique.', 422);
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($coBookers), '?'));
+        $statement = $this->pdo->prepare("select university_id, account_status from app_user where university_id in ({$placeholders}) for update");
+        $statement->execute($coBookers);
+        $users = $statement->fetchAll();
+        $usersByUniversityId = [];
+        foreach ($users as $user) {
+            $usersByUniversityId[(string) $user['university_id']] = $user;
+        }
+
+        foreach ($coBookers as $coBooker) {
+            if (!isset($usersByUniversityId[$coBooker])) {
+                return self::error("Co-booker {$coBooker} is not a registered user.", 422);
+            }
+
+            if ((string) $usersByUniversityId[$coBooker]['account_status'] !== 'ACTIVE') {
+                return self::error("Co-booker {$coBooker} does not have an active account.", 422);
+            }
+
+            if ($this->hasActiveReservation($coBooker)) {
+                return self::error("Co-booker {$coBooker} already has an active reservation.", 409);
+            }
+        }
+
+        return null;
     }
 
     private function hasResourceConflict(int $resourceId, DateTimeImmutable $start, DateTimeImmutable $end): bool

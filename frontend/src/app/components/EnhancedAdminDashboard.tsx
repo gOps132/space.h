@@ -122,6 +122,7 @@ export default function EnhancedAdminDashboard() {
 
     return { occupancyRate, maintenanceAlerts, pendingReservations, noShows, zoneData };
   }, [resources, reservations]);
+  const occupiedZoneData = metrics.zoneData.filter((zone) => zone.value > 0);
 
   const filteredResources = resources.filter((resource) => {
     const haystack = `${resource.resource_id} ${resource.resource_name} ${resource.zone_location} ${resource.current_status}`.toLowerCase();
@@ -130,7 +131,16 @@ export default function EnhancedAdminDashboard() {
 
   const filteredReservations = reservations.filter((reservation) => {
     const resource = resources.find((item) => item.resource_id === reservation.resource_id);
-    const haystack = `${reservation.reservation_id} ${reservation.user_id} ${reservation.resource_id} ${resource?.resource_name ?? ""} ${reservation.booking_status}`.toLowerCase();
+    const haystack = [
+      reservation.reservation_id,
+      reservation.user_id,
+      reservation.user_university_id,
+      reservation.user_name,
+      reservation.resource_id,
+      resource?.resource_name,
+      reservation.booking_status,
+      reservation.co_bookers?.map((coBooker) => `${coBooker.full_name ?? ""} ${coBooker.university_id}`).join(" "),
+    ].join(" ").toLowerCase();
     const matchesQuery = haystack.includes(reservationQuery.toLowerCase());
     const matchesStatus = reservationStatus === "All" || reservation.booking_status === reservationStatus;
 
@@ -430,20 +440,27 @@ export default function EnhancedAdminDashboard() {
             <p className="text-sm">Distribution across active library spaces.</p>
           </div>
           <div className="h-64 sm:h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={metrics.zoneData} dataKey="value" nameKey="name" innerRadius={64} outerRadius={102} paddingAngle={6}>
-                  {metrics.zoneData.map((_, index) => (
-                    <Cell key={index} fill={["oklch(70.8% 0.128 84)", "oklch(39.8% 0.055 143)", "oklch(38.6% 0.136 29)", "oklch(91.8% 0.025 83)"][index % 4]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ backgroundColor: "oklch(25.2% 0.021 56)", borderColor: "rgba(253,252,247,0.18)", borderRadius: 12, color: "oklch(98.4% 0.012 89)" }}
-                  labelStyle={{ color: "oklch(98.4% 0.012 89)", fontWeight: 600 }}
-                  itemStyle={{ color: "oklch(98.4% 0.012 89)" }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {occupiedZoneData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={occupiedZoneData} dataKey="value" nameKey="name" innerRadius={64} outerRadius={102} paddingAngle={6}>
+                    {occupiedZoneData.map((_, index) => (
+                      <Cell key={index} fill={["oklch(70.8% 0.128 84)", "oklch(39.8% 0.055 143)", "oklch(38.6% 0.136 29)", "oklch(91.8% 0.025 83)"][index % 4]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "oklch(25.2% 0.021 56)", borderColor: "rgba(253,252,247,0.18)", borderRadius: 12, color: "oklch(98.4% 0.012 89)" }}
+                    labelStyle={{ color: "oklch(98.4% 0.012 89)", fontWeight: 600 }}
+                    itemStyle={{ color: "oklch(98.4% 0.012 89)" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center rounded-xl border border-parchment/15 bg-parchment/[0.04] p-6 text-center">
+                <p className="font-serif text-2xl text-parchment">No occupied zones</p>
+                <p className="mt-2 max-w-xs text-sm leading-relaxed text-parchment/55">Reserved, occupied, or maintenance-pending spaces will appear here by zone.</p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -510,7 +527,7 @@ export default function EnhancedAdminDashboard() {
         </div>
 
         <div className="hidden max-h-[36rem] overflow-auto md:block">
-          <table className="w-full min-w-[980px] border-collapse text-left">
+          <table className="w-full min-w-[1060px] border-collapse text-left">
             <thead>
               <tr className="border-b border-walnut/10 bg-walnut/5">
                 <TableHead>Reservation</TableHead>
@@ -535,14 +552,14 @@ export default function EnhancedAdminDashboard() {
                   return (
                     <tr key={reservation.reservation_id} className="transition-colors hover:bg-walnut/[0.02]">
                       <td className="p-5 font-mono text-sm text-walnut/60">{reservation.reservation_id}</td>
-                      <td className="p-5 font-mono text-sm text-walnut/60">{reservation.user_id}</td>
+                      <td className="p-5"><UserIdentity reservation={reservation} /></td>
                       <td className="space-y-1 p-5">
                         <p className="font-serif text-lg text-walnut">{resource?.resource_name ?? reservation.resource_id}</p>
                         <p className="font-mono text-xs text-walnut/40">{reservation.resource_id}</p>
                       </td>
                       <td className="p-5 text-sm text-walnut/60">{formatReservationWindow(reservation.start_time, reservation.end_time)}</td>
                       <td className="p-5 text-sm text-walnut/60">{formatAttendanceState(attendance)}</td>
-                      <td className="p-5 text-sm text-walnut/60">{formatCoBookers(reservation.co_bookers)}</td>
+                      <td className="p-5"><CoBookerList coBookers={reservation.co_bookers} /></td>
                       <td className="p-5 text-right"><ReservationStatusBadge status={reservation.booking_status} /></td>
                     </tr>
                   );
@@ -713,6 +730,7 @@ function ReservationMobileCard({
           <p className="font-mono text-xs text-walnut/45">{reservation.reservation_id}</p>
           <h3 className="mt-1 text-xl font-serif text-walnut">{resource?.resource_name ?? reservation.resource_id}</h3>
           <p className="mt-1 font-mono text-xs text-walnut/40">{reservation.user_id} / {reservation.resource_id}</p>
+          {reservation.user_name && <p className="mt-2 text-sm text-walnut/60">Booked by {reservation.user_name}</p>}
         </div>
         <ReservationStatusBadge status={reservation.booking_status} />
       </div>
@@ -728,7 +746,7 @@ function ReservationMobileCard({
         </div>
         <div>
           <dt className="text-[10px] font-bold uppercase tracking-widest text-walnut/35">Group</dt>
-          <dd className="mt-1 text-walnut/65">{formatCoBookers(reservation.co_bookers)}</dd>
+          <dd className="mt-1 text-walnut/65"><CoBookerList coBookers={reservation.co_bookers} compact /></dd>
         </div>
       </dl>
     </article>
@@ -788,12 +806,30 @@ function formatAttendanceState(attendance?: AttendanceLogTransaction): string {
   return `${checkInLabel} to ${checkOutLabel}`;
 }
 
-function formatCoBookers(coBookers?: string[]): string {
+function UserIdentity({ reservation }: { reservation: ReservationTransaction }) {
+  return (
+    <div className="min-w-[10rem] space-y-1">
+      <p className="font-medium text-walnut">{reservation.user_name ?? reservation.user_id}</p>
+      <p className="font-mono text-xs text-walnut/45">{reservation.user_university_id ?? reservation.user_id}</p>
+    </div>
+  );
+}
+
+function CoBookerList({ coBookers, compact = false }: { coBookers?: ReservationTransaction["co_bookers"]; compact?: boolean }) {
   if (!coBookers || coBookers.length === 0) {
-    return "Solo";
+    return <span className="text-sm text-walnut/45">Solo</span>;
   }
 
-  return coBookers.join(", ");
+  return (
+    <div className={compact ? "space-y-1" : "min-w-[12rem] space-y-2"}>
+      {coBookers.map((coBooker) => (
+        <div key={coBooker.university_id} className="space-y-0.5">
+          <p className="text-sm font-medium text-walnut/75">{coBooker.full_name ?? "Unmatched ID"}</p>
+          <p className="font-mono text-xs text-walnut/40">{coBooker.university_id}</p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function AdminStatCard({ label, value, delta, icon: Icon, warning = false }: { label: string; value: string | number; delta: string; icon: typeof Settings; warning?: boolean }) {

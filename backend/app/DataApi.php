@@ -38,18 +38,32 @@ final class DataApi
     {
         $this->releaseExpiredCheckIns();
 
-        $sql = 'select r.id, r.user_id, r.resource_id, r.start_time, r.end_time, r.status, r.created_at
+        $sql = 'select r.id, r.user_id, r.resource_id, r.start_time, r.end_time, r.status, r.created_at, u.university_id, u.full_name
                 from reservation r
                 join app_user u on u.id = r.user_id
                 join study_resource sr on sr.id = r.resource_id';
         $params = [];
         if ($user !== null && ($user['role'] ?? '') === 'FACULTY') {
             $sql .= " where u.university_id = ?
+                       or exists (
+                           select 1
+                           from reservation_participant rp
+                           where rp.reservation_id = r.id
+                             and rp.participant_university_id = ?
+                       )
                        or sr.resource_type in ('GROUP_ROOM', 'CONSULTATION_ROOM')
                        or sr.faculty_exclusive = 1";
             $params[] = $user['universityId'];
+            $params[] = $user['universityId'];
         } elseif ($user !== null && ($user['role'] ?? '') !== 'ADMIN') {
-            $sql .= ' where u.university_id = ?';
+            $sql .= " where u.university_id = ?
+                       or exists (
+                           select 1
+                           from reservation_participant rp
+                           where rp.reservation_id = r.id
+                             and rp.participant_university_id = ?
+                       )";
+            $params[] = $user['universityId'];
             $params[] = $user['universityId'];
         }
         $sql .= ' order by r.start_time desc, r.id desc';
@@ -62,6 +76,9 @@ final class DataApi
         return array_map(fn (array $row): array => [
             'reservation_id' => 'RES' . str_pad((string) $row['id'], 3, '0', STR_PAD_LEFT),
             'user_id' => 'U' . str_pad((string) $row['user_id'], 3, '0', STR_PAD_LEFT),
+            'user_university_id' => $row['university_id'],
+            'user_name' => $row['full_name'],
+            'current_user_role' => $this->currentReservationRole($user, $row, $participants[(int) $row['id']] ?? []),
             'resource_id' => 'SR' . str_pad((string) $row['resource_id'], 3, '0', STR_PAD_LEFT),
             'start_time' => $row['start_time'],
             'end_time' => $row['end_time'],
@@ -81,7 +98,14 @@ final class DataApi
                 join app_user u on u.id = r.user_id';
         $params = [];
         if ($user !== null && ($user['role'] ?? '') !== 'ADMIN') {
-            $sql .= ' where u.university_id = ?';
+            $sql .= " where u.university_id = ?
+                       or exists (
+                           select 1
+                           from reservation_participant rp
+                           where rp.reservation_id = r.id
+                             and rp.participant_university_id = ?
+                       )";
+            $params[] = $user['universityId'];
             $params[] = $user['universityId'];
         }
         $sql .= ' order by a.id desc';
@@ -156,15 +180,42 @@ final class DataApi
     private function participantsByReservation(): array
     {
         $rows = $this->pdo
-            ->query('select reservation_id, participant_university_id from reservation_participant order by id')
+            ->query(
+                'select rp.reservation_id, rp.participant_university_id, u.full_name
+                 from reservation_participant rp
+                 left join app_user u on u.university_id = rp.participant_university_id
+                 order by rp.id'
+            )
             ->fetchAll();
 
         $participants = [];
         foreach ($rows as $row) {
-            $participants[(int) $row['reservation_id']][] = (string) $row['participant_university_id'];
+            $participants[(int) $row['reservation_id']][] = [
+                'university_id' => (string) $row['participant_university_id'],
+                'full_name' => $row['full_name'],
+            ];
         }
 
         return $participants;
+    }
+
+    private function currentReservationRole(?array $user, array $reservation, array $participants): string
+    {
+        if ($user === null || ($user['role'] ?? '') === 'ADMIN') {
+            return 'owner';
+        }
+
+        if (($user['universityId'] ?? '') === (string) $reservation['university_id']) {
+            return 'owner';
+        }
+
+        foreach ($participants as $participant) {
+            if (($user['universityId'] ?? '') === $participant['university_id']) {
+                return 'co_booker';
+            }
+        }
+
+        return 'viewer';
     }
 
     private function peakData(array $reservations): array

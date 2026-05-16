@@ -4,7 +4,9 @@ import {
   buildReservationRequest,
   formatReservationRange,
   hasReservationConflict,
+  isReservationOwner,
   parseCoBookerIds,
+  reservationIncludesUser,
 } from "./reservationWorkflow.ts";
 
 test("buildReservationRequest preserves local wall-clock time with timezone offset", () => {
@@ -82,4 +84,22 @@ test("hasReservationConflict catches pending overlaps for same resource only", (
 
 test("parseCoBookerIds trims blank IDs", () => {
   assert.deepEqual(parseCoBookerIds(" 24-0002-01, ,24-0003-01 "), ["24-0002-01", "24-0003-01"]);
+});
+
+test("reservationIncludesUser matches co-booked participants", () => {
+  const reservation = {
+    reservation_id: "RES003",
+    user_id: "U001",
+    user_university_id: "24-0001-01",
+    resource_id: "SR014",
+    start_time: "2026-05-11 14:00:00",
+    end_time: "2026-05-11 15:00:00",
+    booking_status: "Pending",
+    created_at: "2026-05-01 08:00:00",
+    co_bookers: [{ university_id: "24-0002-01", full_name: "Maya Santos" }],
+  };
+
+  assert.equal(reservationIncludesUser(reservation, { userId: "U002", universityId: "24-0002-01" }), true);
+  assert.equal(isReservationOwner(reservation, { userId: "U002", universityId: "24-0002-01" }), false);
+  assert.equal(isReservationOwner(reservation, { userId: "U001", universityId: "24-0001-01" }), true);
 });

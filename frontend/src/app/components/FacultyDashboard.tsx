@@ -39,6 +39,8 @@ import {
   buildReservationRequest,
   formatReservationRange,
   hasReservationConflict,
+  isReservationOwner,
+  reservationIncludesUser,
 } from "../reservations/reservationWorkflow";
 import { ReservationResourceCard } from "./ReservationResourceCard";
 
@@ -84,11 +86,12 @@ export default function FacultyDashboard() {
   }, []);
 
   const groupRooms = resources.filter(isFacultyReservableResource);
-  const facultyReservations = reservations.filter((reservation) => reservation.user_id === currentUser?.userId);
+  const facultyReservations = reservations.filter((reservation) => reservationIncludesUser(reservation, currentUser));
   const activeReservation = facultyReservations.find((reservation) => reservation.booking_status === "Pending" || reservation.booking_status === "Active");
+  const canManageActiveReservation = activeReservation ? isReservationOwner(activeReservation, currentUser) : false;
   const activeCheckIn = attendanceLogs.find((log) => {
     const reservation = reservations.find((item) => item.reservation_id === log.reservation_id);
-    return reservation?.user_id === currentUser?.userId && log.actual_check_out === null;
+    return Boolean(reservation && reservationIncludesUser(reservation, currentUser) && log.actual_check_out === null);
   });
   const activeResource = activeReservation
     ? resources.find((resource) => resource.resource_id === activeReservation.resource_id)
@@ -293,18 +296,26 @@ export default function FacultyDashboard() {
               </div>
 
               <div className="flex min-w-[220px] flex-col justify-end gap-3">
-                {activeCheckIn ? (
-                  <button type="button" onClick={handleCheckOut} className="rounded-xl bg-oxblood py-4 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-candlelight/40">
-                    Check Out Now
-                  </button>
+                {canManageActiveReservation ? (
+                  activeCheckIn ? (
+                    <button type="button" onClick={handleCheckOut} className="rounded-xl bg-oxblood py-4 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-candlelight/40">
+                      Check Out Now
+                    </button>
+                  ) : (
+                    <button type="button" onClick={handleCheckIn} className="rounded-xl bg-oxblood py-4 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-candlelight/40">
+                      Check In
+                    </button>
+                  )
                 ) : (
-                  <button type="button" onClick={handleCheckIn} className="rounded-xl bg-oxblood py-4 font-medium text-parchment shadow-lg transition-colors hover:bg-oxblood/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-candlelight/40">
-                    Check In
+                  <p className="rounded-xl border border-parchment/15 bg-parchment/10 p-4 text-sm leading-relaxed text-parchment/70">
+                    Group booking managed by {activeReservation.user_name ?? activeReservation.user_id}.
+                  </p>
+                )}
+                {canManageActiveReservation && (
+                  <button type="button" onClick={handleCancelReservation} className="rounded-xl border border-parchment/20 bg-parchment/10 py-4 font-medium text-parchment/80 transition-colors hover:bg-parchment/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-candlelight/40">
+                    Cancel Reservation
                   </button>
                 )}
-                <button type="button" onClick={handleCancelReservation} className="rounded-xl border border-parchment/20 bg-parchment/10 py-4 font-medium text-parchment/80 transition-colors hover:bg-parchment/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-candlelight/40">
-                  Cancel Reservation
-                </button>
               </div>
             </div>
           </div>
