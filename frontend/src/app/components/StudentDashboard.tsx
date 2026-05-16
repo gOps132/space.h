@@ -43,7 +43,10 @@ import {
   parseCoBookerIds,
   reservationIncludesUser,
 } from "../reservations/reservationWorkflow";
+import { LoadMoreFooter } from "./ListControls";
 import { ReservationResourceCard } from "./ReservationResourceCard";
+
+const RESOURCE_BATCH_SIZE = 10;
 
 export default function StudentDashboard() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -56,6 +59,7 @@ export default function StudentDashboard() {
   const [filterZone, setFilterZone] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [powerOnly, setPowerOnly] = useState(false);
+  const [visibleResourceCount, setVisibleResourceCount] = useState(RESOURCE_BATCH_SIZE);
   const [selectedResource, setSelectedResource] = useState("");
   const [bookingDate, setBookingDate] = useState(todayInputDate());
   const [slotDurationMinutes, setSlotDurationMinutes] = useState(60);
@@ -119,6 +123,12 @@ export default function StudentDashboard() {
       return matchesSearch && matchesFloor && matchesZone && matchesPower;
     });
   }, [filterFloor, filterZone, powerOnly, resources, searchQuery]);
+
+  useEffect(() => {
+    setVisibleResourceCount(RESOURCE_BATCH_SIZE);
+  }, [filterFloor, filterZone, powerOnly, searchQuery]);
+
+  const visibleResources = filteredResources.slice(0, visibleResourceCount);
 
   const reservableResources = resources.filter((resource) => !isMaintenanceStatus(resource) && !isFacultyOnlyResource(resource));
   const selectedResourceDetails = selectedResource ? resources.find((resource) => resource.resource_id === selectedResource) : undefined;
@@ -409,7 +419,7 @@ export default function StudentDashboard() {
           </div>
 
           <div className="academic-border max-h-[38rem] overflow-y-auto rounded-2xl bg-parchment">
-            {filteredResources.map((resource) => (
+            {visibleResources.map((resource) => (
               <ReservationResourceCard
                 key={resource.resource_id}
                 resource={resource}
@@ -418,6 +428,12 @@ export default function StudentDashboard() {
                 onSelect={() => setSelectedResource((current) => current === resource.resource_id ? "" : resource.resource_id)}
               />
             ))}
+            <LoadMoreFooter
+              label="spaces"
+              totalItems={filteredResources.length}
+              visibleItems={visibleResources.length}
+              onLoadMore={() => setVisibleResourceCount((count) => count + RESOURCE_BATCH_SIZE)}
+            />
           </div>
         </div>
 
