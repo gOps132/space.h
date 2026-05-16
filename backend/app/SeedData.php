@@ -55,10 +55,20 @@ final class SeedData
         }
 
         $resources = [
-            ['Floor 1 - Desk 04', 'INDIVIDUAL_SEAT', 'Commons', 1, 'AVAILABLE', 1, null, 1, 0],
-            ['Floor 2 - Desk 42', 'INDIVIDUAL_SEAT', 'Silent Zone', 2, 'RESERVED', 1, null, 1, 0],
-            ['Consultation Room A', 'CONSULTATION_ROOM', 'Faculty Wing', 3, 'AVAILABLE', 1, 6, 1, 1],
-            ['Study Room 3B', 'GROUP_ROOM', 'Collaborative Zone', 3, 'OCCUPIED', 1, 8, 3, 0],
+            ['Floor 1 - Desk 1', 'INDIVIDUAL_SEAT', 'Silent Zone', 1, 'AVAILABLE', 1, null, 1, 0],
+            ['Floor 1 - Desk 2', 'INDIVIDUAL_SEAT', 'Silent Zone', 1, 'OCCUPIED', 1, null, 1, 0],
+            ['Floor 1 - Desk 3', 'INDIVIDUAL_SEAT', 'Silent Zone', 1, 'RESERVED', 0, null, 1, 0],
+            ['Floor 1 - Desk 4', 'INDIVIDUAL_SEAT', 'Silent Zone', 1, 'AVAILABLE', 1, null, 1, 0],
+            ['Floor 1 - Desk 6', 'INDIVIDUAL_SEAT', 'Silent Zone', 1, 'UNDER_MAINTENANCE', 1, null, 1, 0],
+            ['Floor 2 - Desk 10', 'INDIVIDUAL_SEAT', 'Collaborative Zone', 2, 'AVAILABLE', 1, null, 1, 0],
+            ['Floor 2 - Desk 11', 'INDIVIDUAL_SEAT', 'Collaborative Zone', 2, 'OCCUPIED', 1, null, 1, 0],
+            ['Floor 2 - Desk 12', 'INDIVIDUAL_SEAT', 'Collaborative Zone', 2, 'AVAILABLE', 0, null, 1, 0],
+            ['Floor 2 - Desk 13', 'INDIVIDUAL_SEAT', 'Collaborative Zone', 2, 'RESERVED', 1, null, 1, 0],
+            ['Floor 3 - Station 1', 'INDIVIDUAL_SEAT', 'Computer Lab', 3, 'OCCUPIED', 1, null, 1, 0],
+            ['Floor 3 - Station 2', 'INDIVIDUAL_SEAT', 'Computer Lab', 3, 'AVAILABLE', 1, null, 1, 0],
+            ['Group Study Room A', 'GROUP_ROOM', 'Floor 2', 2, 'AVAILABLE', 0, 6, 3, 0],
+            ['Faculty Meeting Room 1', 'GROUP_ROOM', 'Floor 3', 3, 'AVAILABLE', 0, 10, 1, 1],
+            ['Faculty Consultation Room', 'CONSULTATION_ROOM', 'Floor 3', 3, 'RESERVED', 0, 6, 1, 1],
         ];
 
         $insertResource = $pdo->prepare(
@@ -72,7 +82,7 @@ final class SeedData
             "insert into reservation (user_id, resource_id, start_time, end_time, status)
              select u.id, r.id, '2026-05-09 09:00:00', '2026-05-09 11:00:00', 'PENDING'
              from app_user u, study_resource r
-             where u.university_id = '24-0001-01' and r.resource_name = 'Floor 2 - Desk 42'"
+             where u.university_id = '24-0001-01' and r.resource_name = 'Floor 2 - Desk 13'"
         );
     }
 }
